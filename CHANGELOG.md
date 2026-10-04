@@ -1,5 +1,11 @@
 # Journal des versions
 
+## v2.2 – 2026-10-05
+- Correction du partage sur Android : Chrome refusait le fichier `.geojson` (« Permission denied »).
+  Le fichier de points est désormais joint en CSV sur Android, en GeoJSON sur iPhone.
+- Repli automatique vers la variante suivante si un type de fichier est refusé.
+- Alerte au-delà de 10 fichiers par partage sur Android.
+
 ## v2.1 – 2026-10-04
 - Application installable sur l'écran d'accueil (manifest, icônes, plein écran).
 - Aide à l'installation affichée selon le téléphone (Android : bouton ; iPhone : consigne Safari).

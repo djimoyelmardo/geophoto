@@ -39,3 +39,9 @@ dans le dossier des photos et utiliser cette infobulle HTML :
 <b>[% "fichier" %]</b><br>[% "commentaire" %]<br>
 <img src="file:///[% @project_folder %]/[% "fichier" %]" width="350">
 ```
+
+### Depuis Android : fichier CSV
+Android ne permet pas de partager un `.geojson` : le mail contient `geophoto.csv` à la place.
+Dans QGIS : Couche → Ajouter une couche → Couche de texte délimité, délimiteur point-virgule,
+champ X `lon`, champ Y `lat`, SCR EPSG:4326 (ou `x_l93` / `y_l93` en EPSG:2154).
+Le bouton « Télécharger le GeoJSON » de l'application reste disponible pour l'obtenir à part.
