@@ -2622,7 +2622,7 @@ SOFTWARE.
     </div>
     <div id="store"></div>
   </section>
-  <p class="sub" style="text-align:center;margin:0">GéoPhoto v2.1</p>
+  <p class="sub" style="text-align:center;margin:0">GéoPhoto v2.2</p>
 </main>
 
 <div id="ed" hidden>
@@ -3165,21 +3165,44 @@ async function prepareShare(){
   prepared = { ids: list.map(m => m.id), tries: [[...photos, geo], [...photos, csv], photos], nPhotos: photos.length, text: mailText(list) };
   $('selInfo').textContent = 'Sélection : ' + list.length + ' photo' + (list.length > 1 ? 's' : '') + ', ' + mo(bytes) +
     (bytes > 20*1048576 ? ' — au-delà de la limite habituelle des mails (20 à 25 Mo) : réduisez la sélection ou décochez les originaux.' : '');
-  $('selInfo').className = bytes > 20*1048576 ? 'warn' : '';
+  if(!IS_IOS && photos.length > 9) $('selInfo').textContent += ' — Android limite un partage à 10 fichiers : réduisez la sélection ou décochez les originaux.';
+  $('selInfo').className = (bytes > 20*1048576 || (!IS_IOS && photos.length > 9)) ? 'warn' : '';
   $('btnShare').disabled = false;
 }
 
+// Android (Chrome) n'autorise au partage que certains types de fichiers : images, CSV, texte, PDF.
+// Le .geojson y est refusé avec « Permission denied » : on joint alors le fichier de points en CSV.
+const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 async function share(){
   const p = prepared; if(!p) return;
-  if(!navigator.canShare){ say("Le partage n'est pas disponible dans ce navigateur : téléchargez les fichiers puis joignez-les au mail."); return; }
-  const files = p.tries.find(f => navigator.canShare({ files: f }));
-  if(!files){ say("Ce navigateur ne sait pas partager des fichiers : téléchargez-les puis joignez-les au mail."); return; }
-  try{
-    await navigator.share({ files, title: 'Photos géolocalisées', text: p.text });
-    for(const id of p.ids){ const m = metas.find(x => x.id === id); if(m){ m.shared = true; await dbPut(m); } }
-    render();
-    say(files.length === p.nPhotos ? "Partagé sans fichier de points (non accepté par ce navigateur) : les coordonnées sont dans le texte et dans l'EXIF." : 'Partage effectué.');
-  }catch(e){ if(e.name !== 'AbortError') say('Partage impossible : ' + e.message); }
+  if(!navigator.canShare){ say("Le partage n'est pas disponible dans ce navigateur : utilisez « Télécharger » sur chaque photo, puis joignez les fichiers au mail."); return; }
+  const variants = [['geojson', p.tries[0]], ['csv', p.tries[1]], ['photos', p.tries[2]]]
+    .filter(v => IS_IOS || v[0] !== 'geojson')
+    .filter(v => { try{ return navigator.canShare({ files: v[1] }); }catch(e){ return false; } });
+  if(!variants.length){
+    say(p.nPhotos > 9 ? "Trop de fichiers pour un seul partage (10 au maximum sur Android) : réduisez la sélection ou décochez les originaux."
+                      : "Ce navigateur ne sait pas partager ces fichiers : utilisez « Télécharger » sur chaque photo, puis joignez-les au mail.");
+    return;
+  }
+  for(let i = 0; i < variants.length; i++){
+    const kind = variants[i][0], files = variants[i][1];
+    try{
+      await navigator.share({ files, title: 'Photos géolocalisées', text: p.text });
+      for(const id of p.ids){ const m = metas.find(x => x.id === id); if(m){ m.shared = true; await dbPut(m); } }
+      render();
+      say(kind === 'geojson' ? 'Partage effectué.'
+        : kind === 'csv' ? 'Partage effectué. Fichier de points joint au format CSV (geophoto.csv), le GeoJSON n\'étant pas accepté par ce téléphone.'
+        : "Partagé sans fichier de points : les coordonnées sont dans le texte du mail et dans l'EXIF des photos.");
+      return;
+    }catch(e){
+      if(e.name === 'AbortError') return;                      // partage annulé par l'utilisateur
+      if(e.name === 'NotAllowedError' && i < variants.length - 1) continue;   // type refusé : variante suivante
+      say(e.name === 'NotAllowedError'
+        ? "Le téléphone a refusé ce partage. Appuyez de nouveau sur « Partager la sélection » ; si le refus persiste, utilisez « Télécharger » puis joignez les fichiers au mail."
+        : 'Partage impossible : ' + e.message);
+      return;
+    }
+  }
 }
 
 function netState(){
