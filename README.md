@@ -20,6 +20,7 @@ Application en ligne : https://djimoyelmardo.github.io/geophoto/
 | `build.py` | Assemble `index.html` à partir des sources |
 | `index.html` | Fichier généré, servi par GitHub Pages (ne pas modifier à la main) |
 | `sw.js` | Cache hors-ligne ; incrémenter `CACHE` à chaque version |
+| `manifest.webmanifest`, `icons/` | Installation sur l'écran d'accueil |
 | `CHANGELOG.md` | Journal des versions |
 
 ## Publier une nouvelle version

@@ -1,5 +1,10 @@
 # Journal des versions
 
+## v2.1 – 2026-10-04
+- Application installable sur l'écran d'accueil (manifest, icônes, plein écran).
+- Aide à l'installation affichée selon le téléphone (Android : bouton ; iPhone : consigne Safari).
+- Numéro de version affiché en bas de l'application.
+
 ## v2.0 – 2026-10-04
 - Annotation : trait libre, flèche, rectangle, ellipse, texte, cote avec mesure, repères numérotés.
 - Photo originale conservée en plus de la photo annotée.
