@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14532d">
+<title>GéoPhoto</title>
+<script>/*LIB:proj4*/</script>
+<script>/*LIB:piexif*/</script>
+<style>
+  :root{
+    --bg:#f4f6f3; --card:#ffffff; --ink:#17201a; --muted:#5b6a60; --line:#d9e0da;
+    --accent:#166534; --accent-ink:#ffffff; --ok:#15803d; --warn:#b45309; --bad:#b91c1c;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#101612; --card:#19211c; --ink:#e7efe9; --muted:#9aaba0; --line:#2b372f;
+           --accent:#22a355; --accent-ink:#06130a; --ok:#4ade80; --warn:#fbbf24; --bad:#f87171; }
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+       padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
+  main{max-width:560px;margin:0 auto}
+  h1{font-size:1.25rem;margin:4px 0 2px}
+  .sub{color:var(--muted);font-size:.85rem;margin:0 0 14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+  .card h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
+  .k{font-size:.75rem;color:var(--muted)}
+  .v{font-variant-numeric:tabular-nums;font-weight:600;word-break:break-word}
+  .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.8rem;font-weight:700;border:1px solid currentColor}
+  .chip{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.72rem;font-weight:700;border:1px solid currentColor;margin-right:4px}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)} .mut{color:var(--muted)}
+  label{display:block;font-size:.8rem;color:var(--muted);margin:10px 0 4px}
+  input[type=text],textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);
+       background:var(--bg);color:var(--ink);font:inherit}
+  textarea{min-height:70px;resize:vertical}
+  .check{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:.9rem;color:var(--ink)}
+  main button{display:block;width:100%;padding:13px;border-radius:12px;border:1px solid var(--line);
+       background:var(--card);color:var(--ink);font:inherit;font-weight:600;text-align:center;cursor:pointer;margin-top:10px}
+  main button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  main button:disabled{opacity:.45;cursor:not-allowed}
+  .row{display:flex;gap:10px} .row > *{flex:1}
+  .item{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line);align-items:flex-start}
+  .item:first-child{border-top:0}
+  .item input[type=checkbox]{width:22px;height:22px;margin-top:30px;flex:none}
+  .item img{width:84px;height:84px;object-fit:cover;border-radius:10px;flex:none;background:var(--line)}
+  .item .meta{font-size:.82rem;min-width:0;flex:1}
+  .item .meta b{display:block;font-size:.85rem;word-break:break-all}
+  .item .acts{display:flex;gap:14px;margin-top:6px;flex-wrap:wrap}
+  main .item .acts button{all:unset;cursor:pointer;color:var(--accent);font-weight:600;font-size:.85rem}
+  main .item .acts button.del{color:var(--bad)}
+  #msg,#selInfo,#store{font-size:.85rem;color:var(--muted);min-height:1.2em;margin-top:8px}
+  .empty{color:var(--muted);font-size:.9rem;margin:0}
+  .head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+
+  /* Éditeur d'annotation : toujours sombre, plein écran */
+  #ed{position:fixed;inset:0;z-index:10;background:#0c0f0d;color:#fff;display:flex;flex-direction:column;
+      padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+  #ed .bar{display:flex;align-items:center;gap:8px;padding:8px 10px;flex:none}
+  #ed .bar .t{flex:1;text-align:center;font-size:.85rem;color:#b9c4bd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #ed button{font:inherit;font-weight:600;border-radius:10px;border:1px solid #39443d;background:#1b221e;color:#fff;
+             padding:9px 12px;cursor:pointer;flex:none}
+  #ed button.primary{background:#22a355;border-color:#22a355;color:#06130a}
+  #ed button.on{background:#fff;color:#0c0f0d;border-color:#fff}
+  #ed button:disabled{opacity:.4}
+  #edWrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  #edCanvas{touch-action:none;display:block;background:#000}
+  #ed .scroll{display:flex;gap:6px;overflow-x:auto;padding:6px 10px;flex:none;-webkit-overflow-scrolling:touch}
+  #ed .sw{width:34px;height:34px;border-radius:50%;padding:0;border:2px solid #39443d}
+  #ed .sw.on{outline:3px solid #fff;outline-offset:1px;background:inherit}
+  #ed input[type=text]{background:#1b221e;color:#fff;border-color:#39443d}
+  #edText{display:flex;gap:6px;padding:6px 10px;flex:none}
+  #edText input{flex:1;min-width:0}
+  #edHint{font-size:.78rem;color:#b9c4bd;padding:0 10px 4px;flex:none;min-height:1.3em}
+</style>
+</head>
+<body>
+<main>
+  <div class="head">
+    <h1>GéoPhoto</h1>
+    <span id="net" class="chip mut"></span>
+  </div>
+  <p class="sub">Photos géolocalisées, annotées, conservées sur ce téléphone</p>
+
+  <section class="card">
+    <h2>Position</h2>
+    <div id="gpsOff">
+      <p class="empty">Le GPS n'est pas encore activé.</p>
+      <button class="primary" id="btnGps">Activer le GPS</button>
+    </div>
+    <div id="gpsOn" hidden>
+      <p style="margin:0 0 10px"><span id="accBadge" class="badge bad">en attente…</span>
+         <span class="k" id="fixInfo"></span></p>
+      <div class="grid">
+        <div><div class="k">X Lambert-93 (m)</div><div class="v" id="vx">–</div></div>
+        <div><div class="k">Y Lambert-93 (m)</div><div class="v" id="vy">–</div></div>
+        <div><div class="k">Latitude WGS84</div><div class="v" id="vlat">–</div></div>
+        <div><div class="k">Longitude WGS84</div><div class="v" id="vlon">–</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Nouvelle photo</h2>
+    <label for="auteur">Auteur</label>
+    <input type="text" id="auteur" autocomplete="name" placeholder="Votre nom">
+    <label for="comment">Commentaire</label>
+    <textarea id="comment" placeholder="Ce que montre la photo…"></textarea>
+    <label class="check"><input type="checkbox" id="burn" checked> Incruster les coordonnées sur l'image</label>
+    <label class="check"><input type="checkbox" id="autoEdit" checked> Ouvrir l'annotation après la prise</label>
+    <input type="file" id="file" accept="image/*" capture="environment" hidden>
+    <button class="primary" id="btnShoot">Prendre la photo</button>
+    <div id="msg"></div>
+  </section>
+
+  <section class="card">
+    <h2>Photos enregistrées (<span id="count">0</span>)</h2>
+    <div id="list"><p class="empty">Aucune photo pour l'instant.</p></div>
+    <div id="selInfo"></div>
+    <label class="check"><input type="checkbox" id="withOrig" checked> Joindre aussi les photos originales</label>
+    <div class="row">
+      <button id="btnGeojson" disabled>Télécharger le GeoJSON</button>
+      <button id="btnShare" class="primary" disabled>Partager la sélection</button>
+    </div>
+    <div id="store"></div>
+  </section>
+</main>
+
+<div id="ed" hidden>
+  <div class="bar">
+    <button id="edCancel">Annuler</button>
+    <div class="t" id="edTitle"></div>
+    <button id="edSave" class="primary">Enregistrer</button>
+  </div>
+  <div id="edWrap"><canvas id="edCanvas"></canvas></div>
+  <div id="edHint"></div>
+  <div id="edText" hidden>
+    <input type="text" id="edTextIn" placeholder="Texte">
+    <button id="edTextOk" class="primary">OK</button>
+    <button id="edTextNo">✕</button>
+  </div>
+  <div class="scroll" id="edTools"></div>
+  <div class="scroll" id="edStyle"></div>
+  <div class="bar"><input type="text" id="edComment" placeholder="Commentaire de la photo"></div>
+</div>
+
+<script>
+/* PURE-START : fonctions sans DOM, testées hors navigateur */
+const L93 = '+proj=lcc +lat_0=46.5 +lon_0=3 +lat_1=49 +lat_2=44 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs';
+
+// Emprise de validité de l'EPSG:2154 (France métropolitaine)
+function inL93Zone(lon, lat){ return lon >= -9.86 && lon <= 10.38 && lat >= 41.15 && lat <= 51.56; }
+
+function toL93(lon, lat){
+  if(!inL93Zone(lon, lat)) return null;
+  const p = proj4('EPSG:4326', L93, [lon, lat]);
+  return { x: Math.round(p[0]*100)/100, y: Math.round(p[1]*100)/100 };
+}
+
+// Degrés décimaux -> rationnels EXIF degrés/minutes/secondes (1/10000 de seconde)
+function toDMS(deg){
+  const total = Math.round(Math.abs(deg) * 3600 * 10000);
+  const d = Math.floor(total / 36000000);
+  const m = Math.floor((total - d*36000000) / 600000);
+  const s = total - d*36000000 - m*600000;
+  return [[d,1],[m,1],[s,10000]];
+}
+
+function pad(n){ return String(n).padStart(2,'0'); }
+
+function asciiOnly(s){
+  return (s||'').replace(/[°º]/g,'o').replace(/œ/g,'oe').replace(/Œ/g,'OE')
+    .normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\x20-\x7E]/g,'?');
+}
+
+// Moyenne pondérée (1/précision²) des meilleurs relevés récents
+function bestPosition(fixes, now, windowMs){
+  let recent = fixes.filter(f => now - f.t <= windowMs);
+  if(!recent.length) return null;
+  const minAcc = Math.min(...recent.map(f => f.acc));
+  recent = recent.filter(f => f.acc <= minAcc * 1.5);
+  let sw=0, lat=0, lon=0, alt=0, swAlt=0;
+  for(const f of recent){
+    const w = 1 / Math.max(f.acc,1)**2;
+    sw += w; lat += f.lat*w; lon += f.lon*w;
+    if(f.alt != null){ alt += f.alt*w; swAlt += w; }
+  }
+  return { lat: lat/sw, lon: lon/sw, acc: minAcc, alt: swAlt ? alt/swAlt : null, n: recent.length };
+}
+
+// Construit le bloc EXIF (tags GPS + description) à insérer dans le JPEG
+function buildExif(pos, date, comment, auteur){
+  const gps = {};
+  gps[piexif.GPSIFD.GPSVersionID] = [2,3,0,0];
+  gps[piexif.GPSIFD.GPSLatitudeRef] = pos.lat >= 0 ? 'N' : 'S';
+  gps[piexif.GPSIFD.GPSLatitude] = toDMS(pos.lat);
+  gps[piexif.GPSIFD.GPSLongitudeRef] = pos.lon >= 0 ? 'E' : 'W';
+  gps[piexif.GPSIFD.GPSLongitude] = toDMS(pos.lon);
+  if(pos.alt != null){
+    gps[piexif.GPSIFD.GPSAltitudeRef] = pos.alt >= 0 ? 0 : 1;
+    gps[piexif.GPSIFD.GPSAltitude] = [Math.round(Math.abs(pos.alt)*100), 100];
+  }
+  gps[piexif.GPSIFD.GPSMapDatum] = 'WGS-84';
+  gps[piexif.GPSIFD.GPSHPositioningError] = [Math.round(pos.acc*100), 100];
+  gps[piexif.GPSIFD.GPSDateStamp] = date.getUTCFullYear()+':'+pad(date.getUTCMonth()+1)+':'+pad(date.getUTCDate());
+  gps[piexif.GPSIFD.GPSTimeStamp] = [[date.getUTCHours(),1],[date.getUTCMinutes(),1],[date.getUTCSeconds(),1]];
+
+  const local = date.getFullYear()+':'+pad(date.getMonth()+1)+':'+pad(date.getDate())+' '+
+                pad(date.getHours())+':'+pad(date.getMinutes())+':'+pad(date.getSeconds());
+  const zeroth = {};
+  zeroth[piexif.ImageIFD.Software] = 'GeoPhoto';
+  zeroth[piexif.ImageIFD.DateTime] = local;
+  if(comment) zeroth[piexif.ImageIFD.ImageDescription] = asciiOnly(comment).slice(0, 500);
+  if(auteur)  zeroth[piexif.ImageIFD.Artist] = asciiOnly(auteur).slice(0, 100);
+  const exif = {};
+  exif[piexif.ExifIFD.DateTimeOriginal] = local;
+  return piexif.dump({ '0th': zeroth, 'Exif': exif, 'GPS': gps });
+}
+
+function props(m){
+  return {
+    id: m.id, fichier: m.name, fichier_original: m.origName, date: m.date, auteur: m.auteur, commentaire: m.commentaire,
+    x_l93: m.l93 ? m.l93.x : null, y_l93: m.l93 ? m.l93.y : null,
+    lon: +m.pos.lon.toFixed(7), lat: +m.pos.lat.toFixed(7),
+    precision_m: +m.pos.acc.toFixed(1), altitude_m: m.pos.alt != null ? +m.pos.alt.toFixed(1) : null,
+    annotee: (m.shapes || []).length > 0
+  };
+}
+
+function toGeoJSON(metas){
+  return {
+    type: 'FeatureCollection', name: 'geophoto',
+    features: metas.map(m => { const p = props(m); return {
+      type: 'Feature', geometry: { type: 'Point', coordinates: [p.lon, p.lat] }, properties: p }; })
+  };
+}
+
+function toCSV(metas){
+  const cols = ['id','fichier','fichier_original','date','auteur','commentaire','x_l93','y_l93','lon','lat','precision_m','altitude_m','annotee'];
+  const esc = v => v == null ? '' : '"' + String(v).replace(/"/g,'""') + '"';
+  return [cols.join(';')].concat(metas.map(m => { const p = props(m); return cols.map(c => esc(p[c])).join(';'); })).join('\r\n');
+}
+
+function contrast(c){ return (c === '#facc15' || c === '#ffffff') ? '#111111' : '#ffffff'; }
+
+// Dessine les annotations ; toutes les coordonnées sont en pixels de l'image
+function drawShapes(ctx, shapes, w, h){
+  const u = Math.max(w, h) / 400;
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for(const s of shapes){
+    const lw = u * s.s * 1.6, fs = u * (9 + s.s * 4);
+    ctx.strokeStyle = s.c; ctx.fillStyle = s.c; ctx.lineWidth = lw;
+    const label = (txt, x, y, align) => {
+      ctx.font = '700 ' + fs + 'px system-ui, sans-serif';
+      ctx.textAlign = align; ctx.textBaseline = 'middle';
+      ctx.lineWidth = fs * 0.22; ctx.strokeStyle = contrast(s.c); ctx.strokeText(txt, x, y);
+      ctx.fillStyle = s.c; ctx.fillText(txt, x, y);
+      ctx.strokeStyle = s.c; ctx.lineWidth = lw;
+    };
+    if(s.t === 'pen'){
+      ctx.beginPath(); ctx.moveTo(s.pts[0].x, s.pts[0].y);
+      if(s.pts.length === 1) ctx.lineTo(s.pts[0].x + 0.1, s.pts[0].y);
+      for(let i = 1; i < s.pts.length; i++) ctx.lineTo(s.pts[i].x, s.pts[i].y);
+      ctx.stroke();
+    } else if(s.t === 'rect'){
+      ctx.strokeRect(s.a.x, s.a.y, s.b.x - s.a.x, s.b.y - s.a.y);
+    } else if(s.t === 'ellipse'){
+      ctx.beginPath();
+      ctx.ellipse((s.a.x+s.b.x)/2, (s.a.y+s.b.y)/2, Math.abs(s.b.x-s.a.x)/2, Math.abs(s.b.y-s.a.y)/2, 0, 0, Math.PI*2);
+      ctx.stroke();
+    } else if(s.t === 'arrow' || s.t === 'cote'){
+      const dx = s.b.x - s.a.x, dy = s.b.y - s.a.y, len = Math.hypot(dx, dy) || 1;
+      const ux = dx/len, uy = dy/len, nx = -uy, ny = ux;
+      if(s.t === 'arrow'){
+        const hl = Math.min(lw * 4.5, len * 0.6);
+        ctx.beginPath(); ctx.moveTo(s.a.x, s.a.y); ctx.lineTo(s.b.x - ux*hl*0.8, s.b.y - uy*hl*0.8); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(s.b.x, s.b.y);
+        ctx.lineTo(s.b.x - ux*hl + nx*hl*0.55, s.b.y - uy*hl + ny*hl*0.55);
+        ctx.lineTo(s.b.x - ux*hl - nx*hl*0.55, s.b.y - uy*hl - ny*hl*0.55);
+        ctx.closePath(); ctx.fill();
+      } else {
+        const t = lw * 3.5;
+        ctx.beginPath(); ctx.moveTo(s.a.x, s.a.y); ctx.lineTo(s.b.x, s.b.y);
+        ctx.moveTo(s.a.x + nx*t, s.a.y + ny*t); ctx.lineTo(s.a.x - nx*t, s.a.y - ny*t);
+        ctx.moveTo(s.b.x + nx*t, s.b.y + ny*t); ctx.lineTo(s.b.x - nx*t, s.b.y - ny*t);
+        ctx.stroke();
+        if(s.txt){
+          const side = ny > 0 ? -1 : 1;   // étiquette au-dessus de la ligne
+          label(s.txt, (s.a.x+s.b.x)/2 + nx*side*fs*0.9, (s.a.y+s.b.y)/2 + ny*side*fs*0.9, 'center');
+        }
+      }
+    } else if(s.t === 'text'){
+      label(s.txt, s.p.x, s.p.y, 'left');
+    } else if(s.t === 'num'){
+      const r = fs * 0.85;
+      ctx.beginPath(); ctx.arc(s.p.x, s.p.y, r, 0, Math.PI*2); ctx.fill();
+      ctx.lineWidth = r * 0.14; ctx.strokeStyle = contrast(s.c); ctx.stroke();
+      ctx.fillStyle = contrast(s.c); ctx.font = '700 ' + fs + 'px system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(s.n), s.p.x, s.p.y + fs*0.04);
+    }
+  }
+  ctx.restore();
+}
+
+function bufToBin(buf){
+  const a = new Uint8Array(buf); let s = '';
+  for(let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000));
+  return s;
+}
+function binToBuf(bin){
+  const a = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+  return a.buffer;
+}
+/* PURE-END */
+
+const $ = id => document.getElementById(id);
+const fixes = [];
+let metas = [];
+const sel = new Set();
+let watchId = null;
+
+function say(t){ $('msg').textContent = t || ''; }
+function fmt(n, d){ return n.toLocaleString('fr-FR', {minimumFractionDigits:d, maximumFractionDigits:d}); }
+function mo(b){ return fmt(b/1048576, 1) + ' Mo'; }
+
+try{ $('auteur').value = localStorage.getItem('geophoto_auteur') || ''; }catch(e){}
+$('auteur').addEventListener('change', () => { try{ localStorage.setItem('geophoto_auteur', $('auteur').value); }catch(e){} });
+
+/* ---------- Stockage local (IndexedDB) ---------- */
+let dbPromise = null;
+function openDb(){
+  if(!dbPromise) dbPromise = new Promise((res, rej) => {
+    const r = indexedDB.open('geophoto', 1);
+    r.onupgradeneeded = () => { r.result.createObjectStore('meta', { keyPath: 'id' }); r.result.createObjectStore('blobs'); };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+  return dbPromise;
+}
+async function dbRun(stores, mode, fn){
+  const d = await openDb();
+  return new Promise((res, rej) => {
+    const t = d.transaction(stores, mode); let out;
+    t.oncomplete = () => res(out); t.onerror = t.onabort = () => rej(t.error || new Error('Stockage indisponible'));
+    fn(t, v => { out = v; });
+  });
+}
+const dbAllMeta = () => dbRun(['meta'], 'readonly', (t, set) => { const r = t.objectStore('meta').getAll(); r.onsuccess = () => set(r.result); });
+const dbBlobs = id => dbRun(['blobs'], 'readonly', (t, set) => { const r = t.objectStore('blobs').get(id); r.onsuccess = () => set(r.result); });
+const dbPut = (meta, blobs) => dbRun(['meta','blobs'], 'readwrite', t => {
+  t.objectStore('meta').put(meta); if(blobs) t.objectStore('blobs').put(blobs, meta.id); });
+const dbDel = id => dbRun(['meta','blobs'], 'readwrite', t => { t.objectStore('meta').delete(id); t.objectStore('blobs').delete(id); });
+
+/* ---------- GPS ---------- */
+function startGps(){
+  if(!('geolocation' in navigator)){ say("La géolocalisation n'est pas disponible sur cet appareil."); return; }
+  if(watchId != null) return;
+  $('gpsOff').hidden = true; $('gpsOn').hidden = false;
+  watchId = navigator.geolocation.watchPosition(onFix, onGpsError, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+}
+function onFix(g){
+  const c = g.coords;
+  fixes.push({ lat:c.latitude, lon:c.longitude, acc:c.accuracy, alt:c.altitude, t:Date.now() });
+  while(fixes.length && Date.now() - fixes[0].t > 120000) fixes.shift();
+  showPosition();
+}
+function onGpsError(err){
+  const b = $('accBadge'); b.className = 'badge bad';
+  b.textContent = err.code === 1 ? 'accès refusé' : 'signal indisponible';
+  $('fixInfo').textContent = err.code === 1
+    ? " Autorisez la localisation pour ce navigateur (Réglages du téléphone → Confidentialité → Service de localisation), puis rechargez la page."
+    : ' Placez-vous en extérieur, ciel dégagé.';
+}
+function showPosition(){
+  const p = bestPosition(fixes, Date.now(), 20000);
+  if(!p) return;
+  const b = $('accBadge');
+  b.className = 'badge ' + (p.acc <= 5 ? 'ok' : p.acc <= 15 ? 'warn' : 'bad');
+  b.textContent = '± ' + fmt(p.acc, 1) + ' m';
+  $('fixInfo').textContent = ' moyenne de ' + p.n + ' relevé' + (p.n > 1 ? 's' : '');
+  $('vlat').textContent = p.lat.toFixed(6);
+  $('vlon').textContent = p.lon.toFixed(6);
+  const l = toL93(p.lon, p.lat);
+  $('vx').textContent = l ? fmt(l.x, 2) : 'hors zone';
+  $('vy').textContent = l ? fmt(l.y, 2) : 'hors zone';
+}
+function freshFix(){
+  return new Promise(res => navigator.geolocation.getCurrentPosition(
+    g => { onFix(g); res(true); }, () => res(false), { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }));
+}
+async function positionForCapture(){
+  let p = bestPosition(fixes, Date.now(), 30000);
+  if(!p){ say('Recherche de la position…'); await freshFix(); p = bestPosition(fixes, Date.now(), 30000); }
+  return p;
+}
+
+/* ---------- Image ---------- */
+async function loadImage(blob){
+  if('createImageBitmap' in window){
+    try{ return await createImageBitmap(blob, { imageOrientation: 'from-image' }); }catch(e){}
+  }
+  return await new Promise((res, rej) => {
+    const img = new Image(); img.onload = () => res(img); img.onerror = () => rej(new Error('Image illisible'));
+    img.src = URL.createObjectURL(blob);
+  });
+}
+
+function bannerLines(m){
+  const d = new Date(m.date);
+  const stamp = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+  return [
+    (m.l93 ? 'X ' + fmt(m.l93.x,2) + '   Y ' + fmt(m.l93.y,2) + '  (Lambert-93)' : 'Hors zone Lambert-93') + '   ± ' + fmt(m.pos.acc,1) + ' m',
+    m.pos.lat.toFixed(6) + ', ' + m.pos.lon.toFixed(6) + ' (WGS84)  ·  ' + stamp + (m.auteur ? '  ·  ' + m.auteur : '')
+  ];
+}
+function drawBanner(ctx, w, h, lines){
+  const bh = Math.max(56, Math.round(h * 0.07));
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.62)'; ctx.fillRect(0, h - bh, w, bh);
+  ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  let size = Math.round(bh * 0.32);
+  const fit = () => { ctx.font = '600 ' + size + 'px system-ui, sans-serif'; return Math.max(...lines.map(t => ctx.measureText(t).width)); };
+  while(fit() > w - 2*size && size > 9) size--;
+  lines.forEach((t, i) => ctx.fillText(t, size, h - bh + bh * (i + 0.5) / lines.length));
+  ctx.restore();
+}
+
+function exifFor(m){ return buildExif(m.pos, new Date(m.date), m.commentaire, m.auteur); }
+function dataUrlToBuf(u){ return binToBuf(atob(u.split(',')[1])); }
+
+// Photo finale = image d'origine + annotations + bandeau + EXIF
+function renderFinal(img, m){
+  const cv = document.createElement('canvas'); cv.width = m.w; cv.height = m.h;
+  const ctx = cv.getContext('2d');
+  ctx.drawImage(img, 0, 0, m.w, m.h);
+  drawShapes(ctx, m.shapes || [], m.w, m.h);
+  if(m.burn) drawBanner(ctx, m.w, m.h, bannerLines(m));
+  const final = dataUrlToBuf(piexif.insert(exifFor(m), cv.toDataURL('image/jpeg', 0.85)));
+  const k = 200 / Math.max(m.w, m.h);
+  const tc = document.createElement('canvas'); tc.width = Math.round(m.w*k); tc.height = Math.round(m.h*k);
+  tc.getContext('2d').drawImage(cv, 0, 0, tc.width, tc.height);
+  return { final, thumb: tc.toDataURL('image/jpeg', 0.7) };
+}
+
+async function handleFile(file){
+  try{
+    const pos = await positionForCapture();
+    if(!pos){ say("Pas de position disponible : photo non enregistrée. Vérifiez le GPS puis réessayez."); return; }
+    say('Traitement de la photo…');
+    const date = new Date();
+    const img = await loadImage(file);
+    const k = Math.min(1, 2560 / Math.max(img.width, img.height));
+    const w = Math.round(img.width * k), h = Math.round(img.height * k);
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    cv.getContext('2d').drawImage(img, 0, 0, w, h);
+
+    const id = 'photo_' + date.getFullYear()+pad(date.getMonth()+1)+pad(date.getDate())+'_'+
+               pad(date.getHours())+pad(date.getMinutes())+pad(date.getSeconds());
+    const m = { id, name: id + '.jpg', origName: id + '_original.jpg', date: date.toISOString(),
+      auteur: $('auteur').value.trim(), commentaire: $('comment').value.trim(),
+      pos: { lat: pos.lat, lon: pos.lon, acc: pos.acc, alt: pos.alt }, l93: toL93(pos.lon, pos.lat),
+      burn: $('burn').checked, w, h, shapes: [], shared: false };
+    const orig = dataUrlToBuf(piexif.insert(exifFor(m), cv.toDataURL('image/jpeg', 0.88)));
+    const r = renderFinal(cv, m);
+    m.thumb = r.thumb; m.size = r.final.byteLength; m.sizeOrig = orig.byteLength;
+    await dbPut(m, { orig, final: r.final });
+    metas.push(m); sel.add(m.id);
+    $('comment').value = '';
+    render();
+    say('Photo enregistrée sur ce téléphone (± ' + fmt(pos.acc,1) + ' m).' + (pos.acc > 15 ? ' Attention : précision faible.' : ''));
+    if($('autoEdit').checked) openEditor(m.id);
+  }catch(e){
+    console.error(e); say('Erreur pendant le traitement : ' + (e && e.message || e));
+  }
+}
+
+/* ---------- Éditeur d'annotation ---------- */
+const TOOLS = [['pen','Trait'],['arrow','Flèche'],['rect','Rectangle'],['ellipse','Ellipse'],['text','Texte'],['cote','Cote'],['num','Numéro']];
+const COLORS = ['#e11d48','#facc15','#ffffff','#111111','#2563eb','#16a34a'];
+const HINTS = { pen:'Dessinez au doigt.', arrow:'Glissez : la pointe est au point d\'arrivée.', rect:'Glissez d\'un coin à l\'autre.',
+  ellipse:'Glissez pour tracer l\'ellipse.', text:'Touchez l\'endroit où placer le texte.',
+  cote:'Glissez entre les deux extrémités, puis saisissez la mesure.', num:'Touchez pour poser un repère numéroté.' };
+const ed = { m:null, img:null, shapes:[], tool:'arrow', color:COLORS[0], size:2, cur:null, pending:null };
+const edCv = $('edCanvas'), edCtx = edCv.getContext('2d');
+
+function buildEditorUi(){
+  const tools = $('edTools'), style = $('edStyle');
+  TOOLS.forEach(([k, lab]) => { const b = document.createElement('button'); b.textContent = lab; b.dataset.tool = k;
+    b.onclick = () => { ed.tool = k; cancelText(); syncEditorUi(); }; tools.appendChild(b); });
+  const undo = document.createElement('button'); undo.id = 'edUndo'; undo.textContent = '↶ Annuler le dernier';
+  undo.onclick = () => { ed.shapes.pop(); cancelText(); redraw(); syncEditorUi(); };
+  const clear = document.createElement('button'); clear.id = 'edClear'; clear.textContent = 'Tout effacer';
+  clear.onclick = () => { ed.shapes = []; cancelText(); redraw(); syncEditorUi(); };
+  COLORS.forEach(c => { const b = document.createElement('button'); b.className = 'sw'; b.style.background = c; b.dataset.color = c;
+    b.setAttribute('aria-label', 'Couleur ' + c); b.onclick = () => { ed.color = c; syncEditorUi(); }; style.appendChild(b); });
+  [[1,'Fin'],[2,'Moyen'],[3,'Épais']].forEach(([s, lab]) => { const b = document.createElement('button'); b.textContent = lab; b.dataset.size = s;
+    b.onclick = () => { ed.size = s; syncEditorUi(); }; style.appendChild(b); });
+  style.append(undo, clear);
+}
+function syncEditorUi(){
+  document.querySelectorAll('#edTools button').forEach(b => b.classList.toggle('on', b.dataset.tool === ed.tool));
+  document.querySelectorAll('#edStyle [data-color]').forEach(b => b.classList.toggle('on', b.dataset.color === ed.color));
+  document.querySelectorAll('#edStyle [data-size]').forEach(b => b.classList.toggle('on', +b.dataset.size === ed.size));
+  $('edUndo').disabled = $('edClear').disabled = !ed.shapes.length;
+  $('edHint').textContent = HINTS[ed.tool];
+}
+function fitEditor(){
+  if(!ed.m) return;
+  const wrap = $('edWrap'), k = Math.min(wrap.clientWidth / ed.m.w, wrap.clientHeight / ed.m.h);
+  edCv.style.width = Math.floor(ed.m.w * k) + 'px'; edCv.style.height = Math.floor(ed.m.h * k) + 'px';
+}
+function redraw(){
+  edCtx.drawImage(ed.img, 0, 0, ed.m.w, ed.m.h);
+  drawShapes(edCtx, ed.cur ? ed.shapes.concat([ed.cur]) : ed.shapes, ed.m.w, ed.m.h);
+  if(ed.m.burn) drawBanner(edCtx, ed.m.w, ed.m.h, bannerLines(ed.m));
+}
+async function openEditor(id){
+  try{
+    const m = metas.find(x => x.id === id); if(!m) return;
+    const b = await dbBlobs(id);
+    ed.img = await loadImage(new Blob([b.orig], { type: 'image/jpeg' }));
+    ed.m = m; ed.shapes = JSON.parse(JSON.stringify(m.shapes || [])); ed.cur = null; ed.pending = null;
+    edCv.width = m.w; edCv.height = m.h;
+    $('edTitle').textContent = m.name; $('edComment').value = m.commentaire || '';
+    $('edText').hidden = true; $('ed').hidden = false; document.body.style.overflow = 'hidden';
+    syncEditorUi(); fitEditor(); redraw();
+  }catch(e){ console.error(e); say("Impossible d'ouvrir la photo : " + (e && e.message || e)); }
+}
+function closeEditor(){ $('ed').hidden = true; document.body.style.overflow = ''; ed.m = null; ed.img = null; }
+
+function pt(e){
+  const r = edCv.getBoundingClientRect();
+  return { x: Math.round((e.clientX - r.left) * edCv.width / r.width), y: Math.round((e.clientY - r.top) * edCv.height / r.height) };
+}
+function askText(placeholder, apply){
+  ed.pending = apply; $('edText').hidden = false;
+  const i = $('edTextIn'); i.value = ''; i.placeholder = placeholder; fitEditor(); i.focus();
+}
+function cancelText(){ ed.pending = null; $('edText').hidden = true; fitEditor(); }
+function confirmText(){
+  const v = $('edTextIn').value.trim(), f = ed.pending;
+  cancelText(); if(f) f(v); redraw(); syncEditorUi();
+}
+
+edCv.addEventListener('pointerdown', e => {
+  if(!ed.m || ed.pending) return;
+  e.preventDefault(); const p = pt(e), base = { t: ed.tool, c: ed.color, s: ed.size };
+  if(ed.tool === 'text'){ askText('Texte à afficher', v => { if(v) ed.shapes.push(Object.assign(base, { p, txt: v })); }); return; }
+  if(ed.tool === 'num'){
+    const n = ed.shapes.filter(s => s.t === 'num').reduce((a, s) => Math.max(a, s.n), 0) + 1;
+    ed.shapes.push(Object.assign(base, { p, n })); redraw(); syncEditorUi(); return;
+  }
+  try{ edCv.setPointerCapture(e.pointerId); }catch(_){}
+  ed.cur = ed.tool === 'pen' ? Object.assign(base, { pts: [p] }) : Object.assign(base, { a: p, b: p });
+  redraw();
+});
+edCv.addEventListener('pointermove', e => {
+  if(!ed.cur) return;
+  e.preventDefault(); const p = pt(e);
+  if(ed.cur.t === 'pen') ed.cur.pts.push(p); else ed.cur.b = p;
+  redraw();
+});
+function endStroke(){
+  const s = ed.cur; if(!s) return; ed.cur = null;
+  const tiny = s.t !== 'pen' && Math.hypot(s.b.x - s.a.x, s.b.y - s.a.y) < Math.max(ed.m.w, ed.m.h) / 100;
+  if(!tiny){
+    ed.shapes.push(s);
+    if(s.t === 'cote') askText('Mesure, par ex. 2,40 m (facultatif)', v => { if(v) s.txt = v; });
+  }
+  redraw(); syncEditorUi();
+}
+edCv.addEventListener('pointerup', endStroke);
+edCv.addEventListener('pointercancel', endStroke);
+$('edTextOk').onclick = confirmText;
+$('edTextNo').onclick = () => { cancelText(); };
+$('edTextIn').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); confirmText(); } });
+$('edCancel').onclick = closeEditor;
+$('edSave').onclick = async () => {
+  const m = ed.m; if(!m) return;
+  $('edSave').disabled = true;
+  try{
+    const comment = $('edComment').value.trim();
+    const next = Object.assign({}, m, { shapes: ed.shapes, commentaire: comment, shared: false });
+    const b = await dbBlobs(m.id);
+    // L'original garde son image, seul son EXIF suit le commentaire
+    const orig = comment !== m.commentaire ? binToBuf(piexif.insert(exifFor(next), bufToBin(b.orig))) : b.orig;
+    const r = renderFinal(ed.img, next);
+    next.thumb = r.thumb; next.size = r.final.byteLength; next.sizeOrig = orig.byteLength;
+    await dbPut(next, { orig, final: r.final });
+    metas[metas.indexOf(m)] = next; sel.add(next.id);
+    closeEditor(); render(); say('Annotation enregistrée.');
+  }catch(e){ console.error(e); $('edHint').textContent = "Échec de l'enregistrement : " + (e && e.message || e); }
+  $('edSave').disabled = false;
+};
+window.addEventListener('resize', fitEditor);
+
+/* ---------- Liste, export, partage ---------- */
+function render(){
+  metas.sort((a, b) => a.date < b.date ? 1 : -1);
+  $('count').textContent = metas.length;
+  $('btnGeojson').disabled = !metas.length;
+  const list = $('list'); list.textContent = '';
+  if(!metas.length){ const p = document.createElement('p'); p.className = 'empty'; p.textContent = "Aucune photo pour l'instant."; list.appendChild(p); }
+  metas.forEach(m => {
+    const d = document.createElement('div'); d.className = 'item';
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = sel.has(m.id);
+    cb.setAttribute('aria-label', 'Sélectionner ' + m.name);
+    cb.onchange = () => { cb.checked ? sel.add(m.id) : sel.delete(m.id); prepareShare(); };
+    const im = document.createElement('img'); im.src = m.thumb; im.alt = '';
+    const box = document.createElement('div'); box.className = 'meta';
+    const b = document.createElement('b'); b.textContent = m.name;
+    const chips = document.createElement('div');
+    const c1 = document.createElement('span'); c1.className = 'chip ' + (m.shared ? 'ok' : 'warn'); c1.textContent = m.shared ? 'partagée' : 'à envoyer';
+    chips.appendChild(c1);
+    if((m.shapes || []).length){ const c2 = document.createElement('span'); c2.className = 'chip mut'; c2.textContent = 'annotée'; chips.appendChild(c2); }
+    const t = document.createElement('div');
+    t.textContent = (m.l93 ? 'X ' + fmt(m.l93.x,2) + ' · Y ' + fmt(m.l93.y,2) : m.pos.lat.toFixed(6) + ', ' + m.pos.lon.toFixed(6)) + ' · ± ' + fmt(m.pos.acc,1) + ' m';
+    const c = document.createElement('div'); c.textContent = m.commentaire || '';
+    const acts = document.createElement('div'); acts.className = 'acts';
+    const a1 = document.createElement('button'); a1.textContent = 'Annoter'; a1.onclick = () => openEditor(m.id);
+    const a2 = document.createElement('button'); a2.textContent = 'Télécharger';
+    a2.onclick = async () => { const bl = await dbBlobs(m.id); download(new Blob([bl.final], { type: 'image/jpeg' }), m.name); };
+    const a3 = document.createElement('button'); a3.className = 'del'; a3.textContent = 'Supprimer';
+    a3.onclick = async () => {
+      if(a3.dataset.sure !== '1'){ a3.dataset.sure = '1'; a3.textContent = 'Confirmer la suppression'; setTimeout(() => { a3.dataset.sure = ''; a3.textContent = 'Supprimer'; }, 4000); return; }
+      await dbDel(m.id); metas = metas.filter(x => x.id !== m.id); sel.delete(m.id); render();
+    };
+    acts.append(a1, a2, a3); box.append(b, chips, t, c, acts); d.append(cb, im, box); list.appendChild(d);
+  });
+  const total = metas.reduce((s, m) => s + m.size + m.sizeOrig, 0);
+  $('store').textContent = metas.length ? metas.length + ' photo' + (metas.length > 1 ? 's' : '') + ' · ' + mo(total) + ' conservés sur ce téléphone' : '';
+  prepareShare();
+}
+
+function download(blob, name){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+function mailText(list){
+  return list.map(m =>
+    m.name + '\n' +
+    (m.l93 ? 'X ' + m.l93.x + ' / Y ' + m.l93.y + ' (Lambert-93)\n' : '') +
+    'Lat ' + m.pos.lat.toFixed(7) + ' / Lon ' + m.pos.lon.toFixed(7) + ' (WGS84), précision ± ' + m.pos.acc.toFixed(1) + ' m\n' +
+    (m.commentaire ? m.commentaire + '\n' : '')
+  ).join('\n');
+}
+
+// Les fichiers sont préparés à l'avance : le partage doit partir dès l'appui, sans attente (exigence d'iOS)
+let prepared = null, prepToken = 0;
+async function prepareShare(){
+  const token = ++prepToken; prepared = null; $('btnShare').disabled = true;
+  const list = metas.filter(m => sel.has(m.id));
+  if(!list.length){ $('selInfo').textContent = metas.length ? 'Aucune photo sélectionnée.' : ''; return; }
+  const withOrig = $('withOrig').checked;
+  const photos = []; let bytes = 0;
+  for(const m of list){
+    const b = await dbBlobs(m.id); if(token !== prepToken) return;
+    photos.push(new File([b.final], m.name, { type: 'image/jpeg' })); bytes += b.final.byteLength;
+    if(withOrig){ photos.push(new File([b.orig], m.origName, { type: 'image/jpeg' })); bytes += b.orig.byteLength; }
+  }
+  const geo = new File([JSON.stringify(toGeoJSON(list), null, 1)], 'geophoto.geojson', { type: 'application/geo+json' });
+  const csv = new File(['﻿' + toCSV(list)], 'geophoto.csv', { type: 'text/csv' });
+  prepared = { ids: list.map(m => m.id), tries: [[...photos, geo], [...photos, csv], photos], nPhotos: photos.length, text: mailText(list) };
+  $('selInfo').textContent = 'Sélection : ' + list.length + ' photo' + (list.length > 1 ? 's' : '') + ', ' + mo(bytes) +
+    (bytes > 20*1048576 ? ' — au-delà de la limite habituelle des mails (20 à 25 Mo) : réduisez la sélection ou décochez les originaux.' : '');
+  $('selInfo').className = bytes > 20*1048576 ? 'warn' : '';
+  $('btnShare').disabled = false;
+}
+
+async function share(){
+  const p = prepared; if(!p) return;
+  if(!navigator.canShare){ say("Le partage n'est pas disponible dans ce navigateur : téléchargez les fichiers puis joignez-les au mail."); return; }
+  const files = p.tries.find(f => navigator.canShare({ files: f }));
+  if(!files){ say("Ce navigateur ne sait pas partager des fichiers : téléchargez-les puis joignez-les au mail."); return; }
+  try{
+    await navigator.share({ files, title: 'Photos géolocalisées', text: p.text });
+    for(const id of p.ids){ const m = metas.find(x => x.id === id); if(m){ m.shared = true; await dbPut(m); } }
+    render();
+    say(files.length === p.nPhotos ? "Partagé sans fichier de points (non accepté par ce navigateur) : les coordonnées sont dans le texte et dans l'EXIF." : 'Partage effectué.');
+  }catch(e){ if(e.name !== 'AbortError') say('Partage impossible : ' + e.message); }
+}
+
+function netState(){
+  const n = $('net'); n.textContent = navigator.onLine ? 'en ligne' : 'hors ligne'; n.className = 'chip ' + (navigator.onLine ? 'mut' : 'warn');
+}
+window.addEventListener('online', netState); window.addEventListener('offline', netState);
+
+$('btnGps').onclick = startGps;
+$('btnShoot').onclick = () => { startGps(); $('file').click(); };
+$('file').onchange = ev => { const f = ev.target.files[0]; ev.target.value = ''; if(f) handleFile(f); };
+$('btnGeojson').onclick = () => download(new Blob([JSON.stringify(toGeoJSON(metas), null, 1)], { type: 'application/geo+json' }), 'geophoto.geojson');
+$('btnShare').onclick = share;
+$('withOrig').onchange = prepareShare;
+
+(async function init(){
+  buildEditorUi(); netState();
+  try{ metas = await dbAllMeta(); metas.forEach(m => { if(!m.shared) sel.add(m.id); }); }
+  catch(e){ console.error(e); say("Le stockage local est indisponible (navigation privée ?) : les photos ne seront pas conservées."); }
+  render();
+  if(navigator.storage && navigator.storage.persist){ try{ await navigator.storage.persist(); }catch(e){} }
+  if('serviceWorker' in navigator){ try{ await navigator.serviceWorker.register('sw.js'); }catch(e){ console.warn('Hors-ligne non activé', e); } }
+})();
+</script>
+</body>
+</html>
