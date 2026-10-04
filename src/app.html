@@ -101,7 +101,7 @@
   <section class="card">
     <h2>Position</h2>
     <div id="gpsOff">
-      <p class="empty">Le GPS n'est pas encore activé.</p>
+      <p class="empty" id="gpsOffText">Le GPS n'est pas encore activé.</p>
       <button class="primary" id="btnGps">Activer le GPS</button>
     </div>
     <div id="gpsOn" hidden>
@@ -118,8 +118,8 @@
 
   <section class="card">
     <h2>Nouvelle photo</h2>
-    <label for="auteur">Auteur</label>
-    <input type="text" id="auteur" autocomplete="name" placeholder="Votre nom">
+    <label for="auteur">Agent OFB</label>
+    <input type="text" id="auteur" autocomplete="name" placeholder="Nom de l'agent">
     <label for="comment">Commentaire</label>
     <textarea id="comment" placeholder="Ce que montre la photo…"></textarea>
     <label class="check"><input type="checkbox" id="burn" checked> Incruster les coordonnées sur l'image</label>
@@ -139,8 +139,10 @@
       <button id="btnShare" class="primary" disabled>Partager la sélection</button>
     </div>
     <div id="store"></div>
+    <button id="btnFinish">Terminer l'opération</button>
+    <p class="sub" style="margin:6px 0 0">Efface les photos et le nom de l'agent de ce téléphone, pour repartir d'un formulaire vide.</p>
   </section>
-  <p class="sub" style="text-align:center;margin:0">GéoPhoto v2.2</p>
+  <p class="sub" style="text-align:center;margin:0">GéoPhoto v2.3</p>
 </main>
 
 <div id="ed" hidden>
@@ -367,6 +369,7 @@ const dbAllMeta = () => dbRun(['meta'], 'readonly', (t, set) => { const r = t.ob
 const dbBlobs = id => dbRun(['blobs'], 'readonly', (t, set) => { const r = t.objectStore('blobs').get(id); r.onsuccess = () => set(r.result); });
 const dbPut = (meta, blobs) => dbRun(['meta','blobs'], 'readwrite', t => {
   t.objectStore('meta').put(meta); if(blobs) t.objectStore('blobs').put(blobs, meta.id); });
+const dbClear = () => dbRun(['meta','blobs'], 'readwrite', t => { t.objectStore('meta').clear(); t.objectStore('blobs').clear(); });
 const dbDel = id => dbRun(['meta','blobs'], 'readwrite', t => { t.objectStore('meta').delete(id); t.objectStore('blobs').delete(id); });
 
 /* ---------- GPS ---------- */
@@ -383,11 +386,15 @@ function onFix(g){
   showPosition();
 }
 function onGpsError(err){
-  const b = $('accBadge'); b.className = 'badge bad';
-  b.textContent = err.code === 1 ? 'accès refusé' : 'signal indisponible';
-  $('fixInfo').textContent = err.code === 1
-    ? " Autorisez la localisation pour ce navigateur (Réglages du téléphone → Confidentialité → Service de localisation), puis rechargez la page."
-    : ' Placez-vous en extérieur, ciel dégagé.';
+  if(err.code === 1){
+    // Refus : on arrête le suivi et on réaffiche le bouton pour pouvoir réessayer
+    try{ navigator.geolocation.clearWatch(watchId); }catch(e){} watchId = null;
+    $('gpsOn').hidden = true; $('gpsOff').hidden = false;
+    $('gpsOffText').textContent = "Localisation refusée. Autorisez-la pour ce navigateur (Réglages du téléphone → Confidentialité → Service de localisation), puis appuyez sur « Activer le GPS ».";
+    return;
+  }
+  const b = $('accBadge'); b.className = 'badge bad'; b.textContent = 'signal indisponible';
+  $('fixInfo').textContent = ' Placez-vous en extérieur, ciel dégagé.';
 }
 function showPosition(){
   const p = bestPosition(fixes, Date.now(), 20000);
@@ -708,9 +715,9 @@ async function share(){
       await navigator.share({ files, title: 'Photos géolocalisées', text: p.text });
       for(const id of p.ids){ const m = metas.find(x => x.id === id); if(m){ m.shared = true; await dbPut(m); } }
       render();
-      say(kind === 'geojson' ? 'Partage effectué.'
+      say((kind === 'geojson' ? 'Partage effectué.'
         : kind === 'csv' ? 'Partage effectué. Fichier de points joint au format CSV (geophoto.csv), le GeoJSON n\'étant pas accepté par ce téléphone.'
-        : "Partagé sans fichier de points : les coordonnées sont dans le texte du mail et dans l'EXIF des photos.");
+        : "Partagé sans fichier de points : les coordonnées sont dans le texte du mail et dans l'EXIF des photos.") + " Une fois le mail envoyé, appuyez sur « Terminer l'opération » pour une nouvelle saisie.");
       return;
     }catch(e){
       if(e.name === 'AbortError') return;                      // partage annulé par l'utilisateur
@@ -723,6 +730,30 @@ async function share(){
   }
 }
 
+/* ---------- Fin d'opération : retour au formulaire vide ---------- */
+let finishTimer = null;
+function resetFinishButton(){ clearTimeout(finishTimer); const b = $('btnFinish'); b.dataset.sure = ''; b.textContent = "Terminer l'opération"; b.style.borderColor = ''; b.style.color = ''; }
+async function finishOperation(){
+  const b = $('btnFinish');
+  if(metas.length && b.dataset.sure !== '1'){
+    const pending = metas.filter(m => !m.shared).length;
+    b.dataset.sure = '1';
+    b.textContent = 'Confirmer : effacer ' + metas.length + ' photo' + (metas.length > 1 ? 's' : '') +
+      (pending ? ' (dont ' + pending + ' non partagée' + (pending > 1 ? 's' : '') + ')' : '');
+    b.style.borderColor = b.style.color = 'var(--bad)';
+    finishTimer = setTimeout(resetFinishButton, 6000);
+    return;
+  }
+  resetFinishButton();
+  try{ await dbClear(); }catch(e){ console.error(e); say("Impossible d'effacer les photos : " + (e && e.message || e)); return; }
+  metas = []; sel.clear(); prepared = null;
+  $('auteur').value = ''; $('comment').value = '';
+  try{ localStorage.removeItem('geophoto_auteur'); }catch(e){}
+  render();
+  say('Opération terminée. Le formulaire est prêt pour une nouvelle saisie.');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function netState(){
   const n = $('net'); n.textContent = navigator.onLine ? 'en ligne' : 'hors ligne'; n.className = 'chip ' + (navigator.onLine ? 'mut' : 'warn');
 }
@@ -733,6 +764,7 @@ $('btnShoot').onclick = () => { startGps(); $('file').click(); };
 $('file').onchange = ev => { const f = ev.target.files[0]; ev.target.value = ''; if(f) handleFile(f); };
 $('btnGeojson').onclick = () => download(new Blob([JSON.stringify(toGeoJSON(metas), null, 1)], { type: 'application/geo+json' }), 'geophoto.geojson');
 $('btnShare').onclick = share;
+$('btnFinish').onclick = finishOperation;
 $('withOrig').onchange = prepareShare;
 
 /* ---------- Installation sur l'écran d'accueil ---------- */
@@ -763,6 +795,7 @@ $('btnInstallLater').onclick = () => { try{ localStorage.setItem('geophoto_insta
 
 (async function init(){
   buildEditorUi(); netState(); showInstall();
+  startGps();   // GPS actif dès l'ouverture
   try{ metas = await dbAllMeta(); metas.forEach(m => { if(!m.shared) sel.add(m.id); }); }
   catch(e){ console.error(e); say("Le stockage local est indisponible (navigation privée ?) : les photos ne seront pas conservées."); }
   render();
