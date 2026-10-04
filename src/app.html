@@ -58,7 +58,8 @@
   .item .acts{display:flex;gap:14px;margin-top:6px;flex-wrap:wrap}
   main .item .acts button{all:unset;cursor:pointer;color:var(--accent);font-weight:600;font-size:.85rem}
   main .item .acts button.del{color:var(--bad)}
-  #msg,#selInfo,#store{font-size:.85rem;color:var(--muted);min-height:1.2em;margin-top:8px}
+  summary{cursor:pointer}
+  #msg,#selInfo,#store,#archInfo{font-size:.85rem;color:var(--muted);min-height:1.2em;margin-top:8px}
   .empty{color:var(--muted);font-size:.9rem;margin:0}
   .head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 
@@ -140,9 +141,25 @@
     </div>
     <div id="store"></div>
     <button id="btnFinish">Terminer l'opération</button>
-    <p class="sub" style="margin:6px 0 0">Efface les photos et le nom de l'agent de ce téléphone, pour repartir d'un formulaire vide.</p>
+    <p class="sub" style="margin:6px 0 0">Enregistre les photos dans la galerie du téléphone, les range dans « Opérations précédentes » et vide le formulaire. Le nom de l'agent est conservé.</p>
   </section>
-  <p class="sub" style="text-align:center;margin:0">GéoPhoto v2.3</p>
+
+  <section class="card" id="archCard" hidden>
+    <details id="archDetails">
+      <summary><h2 style="display:inline">Opérations précédentes (<span id="archCount">0</span>)</h2></summary>
+      <div id="archList" style="margin-top:10px"></div>
+      <div id="archInfo"></div>
+      <div class="row">
+        <button id="archAll">Tout cocher</button>
+        <button id="archGallery" disabled>Enregistrer dans la galerie</button>
+      </div>
+      <div class="row">
+        <button id="archRestore" disabled>Remettre dans le formulaire</button>
+        <button id="archDelete" disabled>Supprimer la sélection</button>
+      </div>
+    </details>
+  </section>
+  <p class="sub" style="text-align:center;margin:0">GéoPhoto v2.4</p>
 </main>
 
 <div id="ed" hidden>
@@ -620,41 +637,64 @@ $('edSave').onclick = async () => {
 window.addEventListener('resize', fitEditor);
 
 /* ---------- Liste, export, partage ---------- */
+const cur = () => metas.filter(m => !m.archived);    // photos de l'opération en cours
+const arch = () => metas.filter(m => m.archived);    // photos des opérations terminées
+const selA = new Set();                              // sélection dans l'archive
+
+function itemRow(m, set, onToggle, extra){
+  const d = document.createElement('div'); d.className = 'item';
+  const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = set.has(m.id);
+  cb.setAttribute('aria-label', 'Sélectionner ' + m.name);
+  cb.onchange = () => { cb.checked ? set.add(m.id) : set.delete(m.id); onToggle(); };
+  const im = document.createElement('img'); im.src = m.thumb; im.alt = '';
+  const box = document.createElement('div'); box.className = 'meta';
+  const b = document.createElement('b'); b.textContent = m.name;
+  const chips = document.createElement('div');
+  const c1 = document.createElement('span'); c1.className = 'chip ' + (m.shared ? 'ok' : 'warn'); c1.textContent = m.shared ? 'partagée' : (m.archived ? 'non partagée' : 'à envoyer');
+  chips.appendChild(c1);
+  if((m.shapes || []).length){ const c2 = document.createElement('span'); c2.className = 'chip mut'; c2.textContent = 'annotée'; chips.appendChild(c2); }
+  const t = document.createElement('div');
+  t.textContent = (m.l93 ? 'X ' + fmt(m.l93.x,2) + ' · Y ' + fmt(m.l93.y,2) : m.pos.lat.toFixed(6) + ', ' + m.pos.lon.toFixed(6)) + ' · ± ' + fmt(m.pos.acc,1) + ' m';
+  const c = document.createElement('div'); c.textContent = m.commentaire || '';
+  box.append(b, chips, t, c);
+  if(extra){ const x = document.createElement('div'); x.className = 'mut'; x.textContent = extra; box.appendChild(x); }
+  const acts = document.createElement('div'); acts.className = 'acts';
+  const dl = document.createElement('button'); dl.textContent = 'Télécharger';
+  dl.onclick = async () => { const bl = await dbBlobs(m.id); download(new Blob([bl.final], { type: 'image/jpeg' }), m.name); };
+  acts.appendChild(dl); box.appendChild(acts); d.append(cb, im, box);
+  return { d, acts, dl };
+}
+
 function render(){
   metas.sort((a, b) => a.date < b.date ? 1 : -1);
-  $('count').textContent = metas.length;
-  $('btnGeojson').disabled = !metas.length;
+  const c = cur(), a = arch();
+  $('count').textContent = c.length;
+  $('btnGeojson').disabled = !c.length;
   const list = $('list'); list.textContent = '';
-  if(!metas.length){ const p = document.createElement('p'); p.className = 'empty'; p.textContent = "Aucune photo pour l'instant."; list.appendChild(p); }
-  metas.forEach(m => {
-    const d = document.createElement('div'); d.className = 'item';
-    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = sel.has(m.id);
-    cb.setAttribute('aria-label', 'Sélectionner ' + m.name);
-    cb.onchange = () => { cb.checked ? sel.add(m.id) : sel.delete(m.id); prepareShare(); };
-    const im = document.createElement('img'); im.src = m.thumb; im.alt = '';
-    const box = document.createElement('div'); box.className = 'meta';
-    const b = document.createElement('b'); b.textContent = m.name;
-    const chips = document.createElement('div');
-    const c1 = document.createElement('span'); c1.className = 'chip ' + (m.shared ? 'ok' : 'warn'); c1.textContent = m.shared ? 'partagée' : 'à envoyer';
-    chips.appendChild(c1);
-    if((m.shapes || []).length){ const c2 = document.createElement('span'); c2.className = 'chip mut'; c2.textContent = 'annotée'; chips.appendChild(c2); }
-    const t = document.createElement('div');
-    t.textContent = (m.l93 ? 'X ' + fmt(m.l93.x,2) + ' · Y ' + fmt(m.l93.y,2) : m.pos.lat.toFixed(6) + ', ' + m.pos.lon.toFixed(6)) + ' · ± ' + fmt(m.pos.acc,1) + ' m';
-    const c = document.createElement('div'); c.textContent = m.commentaire || '';
-    const acts = document.createElement('div'); acts.className = 'acts';
+  if(!c.length){ const p = document.createElement('p'); p.className = 'empty'; p.textContent = "Aucune photo pour l'instant."; list.appendChild(p); }
+  c.forEach(m => {
+    const r = itemRow(m, sel, prepareShare);
     const a1 = document.createElement('button'); a1.textContent = 'Annoter'; a1.onclick = () => openEditor(m.id);
-    const a2 = document.createElement('button'); a2.textContent = 'Télécharger';
-    a2.onclick = async () => { const bl = await dbBlobs(m.id); download(new Blob([bl.final], { type: 'image/jpeg' }), m.name); };
     const a3 = document.createElement('button'); a3.className = 'del'; a3.textContent = 'Supprimer';
     a3.onclick = async () => {
       if(a3.dataset.sure !== '1'){ a3.dataset.sure = '1'; a3.textContent = 'Confirmer la suppression'; setTimeout(() => { a3.dataset.sure = ''; a3.textContent = 'Supprimer'; }, 4000); return; }
       await dbDel(m.id); metas = metas.filter(x => x.id !== m.id); sel.delete(m.id); render();
     };
-    acts.append(a1, a2, a3); box.append(b, chips, t, c, acts); d.append(cb, im, box); list.appendChild(d);
+    r.acts.insertBefore(a1, r.dl); r.acts.appendChild(a3); list.appendChild(r.d);
   });
+
+  $('archCard').hidden = !a.length; $('archCount').textContent = a.length;
+  const al = $('archList'); al.textContent = '';
+  for(const id of Array.from(selA)) if(!a.some(m => m.id === id)) selA.delete(id);
+  a.forEach(m => {
+    const d = m.opDate ? new Date(m.opDate) : null;
+    const when = d ? 'Opération terminée le ' + pad(d.getDate()) + '/' + pad(d.getMonth()+1) + ' à ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) : '';
+    al.appendChild(itemRow(m, selA, prepareArch, when).d);
+  });
+
   const total = metas.reduce((s, m) => s + m.size + m.sizeOrig, 0);
   $('store').textContent = metas.length ? metas.length + ' photo' + (metas.length > 1 ? 's' : '') + ' · ' + mo(total) + ' conservés sur ce téléphone' : '';
-  prepareShare();
+  prepareShare(); prepareGallery(); prepareArch();
 }
 
 function download(blob, name){
@@ -676,8 +716,8 @@ function mailText(list){
 let prepared = null, prepToken = 0;
 async function prepareShare(){
   const token = ++prepToken; prepared = null; $('btnShare').disabled = true;
-  const list = metas.filter(m => sel.has(m.id));
-  if(!list.length){ $('selInfo').textContent = metas.length ? 'Aucune photo sélectionnée.' : ''; return; }
+  const list = cur().filter(m => sel.has(m.id));
+  if(!list.length){ $('selInfo').textContent = cur().length ? 'Aucune photo sélectionnée.' : ''; return; }
   const withOrig = $('withOrig').checked;
   const photos = []; let bytes = 0;
   for(const m of list){
@@ -730,29 +770,104 @@ async function share(){
   }
 }
 
-/* ---------- Fin d'opération : retour au formulaire vide ---------- */
-let finishTimer = null;
-function resetFinishButton(){ clearTimeout(finishTimer); const b = $('btnFinish'); b.dataset.sure = ''; b.textContent = "Terminer l'opération"; b.style.borderColor = ''; b.style.color = ''; }
-async function finishOperation(){
-  const b = $('btnFinish');
-  if(metas.length && b.dataset.sure !== '1'){
-    const pending = metas.filter(m => !m.shared).length;
-    b.dataset.sure = '1';
-    b.textContent = 'Confirmer : effacer ' + metas.length + ' photo' + (metas.length > 1 ? 's' : '') +
-      (pending ? ' (dont ' + pending + ' non partagée' + (pending > 1 ? 's' : '') + ')' : '');
-    b.style.borderColor = b.style.color = 'var(--bad)';
-    finishTimer = setTimeout(resetFinishButton, 6000);
-    return;
+/* ---------- Galerie du téléphone ---------- */
+// Photo annotée si elle porte des annotations, sinon la photo originale
+async function galleryFiles(list){
+  const out = [];
+  for(const m of list){
+    const b = await dbBlobs(m.id), ann = (m.shapes || []).length > 0;
+    out.push(new File([ann ? b.final : b.orig], ann ? m.name : m.origName, { type: 'image/jpeg' }));
   }
-  resetFinishButton();
-  try{ await dbClear(); }catch(e){ console.error(e); say("Impossible d'effacer les photos : " + (e && e.message || e)); return; }
-  metas = []; sel.clear(); prepared = null;
-  $('auteur').value = ''; $('comment').value = '';
-  try{ localStorage.removeItem('geophoto_auteur'); }catch(e){}
+  return out;
+}
+// Une page web ne peut pas écrire seule dans la galerie : sur iPhone on passe par la feuille de partage
+// (« Enregistrer les images »), ailleurs par un téléchargement (dossier Téléchargements, visible dans la galerie).
+async function saveToGallery(files){
+  let shareable = false;
+  try{ shareable = IS_IOS && !!navigator.canShare && navigator.canShare({ files }); }catch(e){}
+  if(shareable){
+    try{ await navigator.share({ files }); return 'saved'; }
+    catch(e){ return e.name === 'AbortError' ? 'cancelled' : 'failed'; }
+  }
+  try{ for(const f of files){ download(f, f.name); await new Promise(r => setTimeout(r, 450)); } return 'saved'; }
+  catch(e){ return 'failed'; }
+}
+const GALLERY_HINT = () => IS_IOS ? "Dans la feuille de partage, touchez « Enregistrer les images »."
+                                  : "Les photos vont dans le dossier Téléchargements, visible dans la galerie.";
+
+// Fichiers préparés à l'avance : l'enregistrement doit partir dès l'appui (exigence d'iOS)
+let galCur = null, galTok = 0;
+async function prepareGallery(){
+  const t = ++galTok; galCur = null; const list = cur();
+  $('btnFinish').disabled = list.length > 0;
+  if(!list.length) return;
+  const files = await galleryFiles(list); if(t !== galTok) return;
+  galCur = { ids: list.map(m => m.id), files }; $('btnFinish').disabled = false;
+}
+let galArch = null, archTok = 0;
+async function prepareArch(){
+  const t = ++archTok; galArch = null;
+  const all = arch(), list = all.filter(m => selA.has(m.id));
+  $('archAll').textContent = all.length && list.length === all.length ? 'Tout décocher' : 'Tout cocher';
+  $('archInfo').textContent = all.length ? list.length + ' photo' + (list.length > 1 ? 's' : '') + ' sélectionnée' + (list.length > 1 ? 's' : '') + ' sur ' + all.length : '';
+  $('archGallery').disabled = true; $('archRestore').disabled = $('archDelete').disabled = !list.length;
+  resetArchDelete();
+  if(!list.length) return;
+  const files = await galleryFiles(list); if(t !== archTok) return;
+  galArch = { ids: list.map(m => m.id), files }; $('archGallery').disabled = false;
+}
+
+/* ---------- Fin d'opération : galerie, archive, formulaire vide ---------- */
+async function finishOperation(){
+  const list = cur();
+  if(!list.length){ $('comment').value = ''; say('Le formulaire est prêt pour une nouvelle saisie.'); return; }
+  const g = galCur; if(!g) return;
+  const r = await saveToGallery(g.files);
+  if(r === 'cancelled'){ say("Enregistrement annulé : l'opération n'est pas terminée. " + GALLERY_HINT()); return; }
+  const stamp = new Date().toISOString(); let unsent = 0;
+  for(const id of g.ids){
+    const m = metas.find(x => x.id === id); if(!m) continue;
+    if(!m.shared) unsent++;
+    m.archived = true; m.opDate = stamp; await dbPut(m); sel.delete(id);
+  }
+  $('comment').value = '';
   render();
-  say('Opération terminée. Le formulaire est prêt pour une nouvelle saisie.');
+  say((r === 'saved' ? 'Opération terminée. ' + (IS_IOS ? '' : 'Photos enregistrées dans le dossier Téléchargements. ')
+                     : "Opération terminée, mais l'enregistrement en galerie a échoué : relancez-le depuis « Opérations précédentes ». ") +
+      'Les photos restent consultables dans « Opérations précédentes ».' +
+      (unsent ? ' Attention : ' + unsent + ' photo' + (unsent > 1 ? "s n'ont" : " n'a") + ' pas été partagée' + (unsent > 1 ? 's' : '') + ' par mail.' : ''));
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+/* ---------- Opérations précédentes ---------- */
+let archDelTimer = null;
+function resetArchDelete(){ clearTimeout(archDelTimer); const b = $('archDelete'); b.dataset.sure = ''; b.textContent = 'Supprimer la sélection'; b.style.borderColor = b.style.color = ''; }
+$('archAll').onclick = () => {
+  const all = arch(), every = all.length && all.every(m => selA.has(m.id));
+  selA.clear(); if(!every) all.forEach(m => selA.add(m.id));
+  render();
+};
+$('archGallery').onclick = async () => {
+  const g = galArch; if(!g) return;
+  const r = await saveToGallery(g.files);
+  say(r === 'saved' ? (IS_IOS ? 'Enregistrement lancé.' : 'Photos enregistrées dans le dossier Téléchargements.')
+    : r === 'cancelled' ? 'Enregistrement annulé. ' + GALLERY_HINT() : "L'enregistrement a échoué : utilisez « Télécharger » sur chaque photo.");
+};
+$('archRestore').onclick = async () => {
+  for(const m of arch().filter(x => selA.has(x.id))){ m.archived = false; delete m.opDate; await dbPut(m); sel.add(m.id); }
+  selA.clear(); render(); say('Photos remises dans le formulaire.');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+$('archDelete').onclick = async () => {
+  const b = $('archDelete'), list = arch().filter(m => selA.has(m.id)); if(!list.length) return;
+  if(b.dataset.sure !== '1'){
+    b.dataset.sure = '1'; b.textContent = 'Confirmer : supprimer ' + list.length + ' photo' + (list.length > 1 ? 's' : '');
+    b.style.borderColor = b.style.color = 'var(--bad)'; archDelTimer = setTimeout(resetArchDelete, 6000); return;
+  }
+  for(const m of list){ await dbDel(m.id); selA.delete(m.id); }
+  const ids = new Set(list.map(m => m.id)); metas = metas.filter(m => !ids.has(m.id));
+  render(); say(list.length + ' photo' + (list.length > 1 ? 's supprimées' : ' supprimée') + " de l'application.");
+};
 
 function netState(){
   const n = $('net'); n.textContent = navigator.onLine ? 'en ligne' : 'hors ligne'; n.className = 'chip ' + (navigator.onLine ? 'mut' : 'warn');
@@ -762,7 +877,7 @@ window.addEventListener('online', netState); window.addEventListener('offline', 
 $('btnGps').onclick = startGps;
 $('btnShoot').onclick = () => { startGps(); $('file').click(); };
 $('file').onchange = ev => { const f = ev.target.files[0]; ev.target.value = ''; if(f) handleFile(f); };
-$('btnGeojson').onclick = () => download(new Blob([JSON.stringify(toGeoJSON(metas), null, 1)], { type: 'application/geo+json' }), 'geophoto.geojson');
+$('btnGeojson').onclick = () => download(new Blob([JSON.stringify(toGeoJSON(cur()), null, 1)], { type: 'application/geo+json' }), 'geophoto.geojson');
 $('btnShare').onclick = share;
 $('btnFinish').onclick = finishOperation;
 $('withOrig').onchange = prepareShare;
@@ -796,7 +911,7 @@ $('btnInstallLater').onclick = () => { try{ localStorage.setItem('geophoto_insta
 (async function init(){
   buildEditorUi(); netState(); showInstall();
   startGps();   // GPS actif dès l'ouverture
-  try{ metas = await dbAllMeta(); metas.forEach(m => { if(!m.shared) sel.add(m.id); }); }
+  try{ metas = await dbAllMeta(); metas.forEach(m => { if(!m.shared && !m.archived) sel.add(m.id); }); }
   catch(e){ console.error(e); say("Le stockage local est indisponible (navigation privée ?) : les photos ne seront pas conservées."); }
   render();
   if(navigator.storage && navigator.storage.persist){ try{ await navigator.storage.persist(); }catch(e){} }
