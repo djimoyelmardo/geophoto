@@ -1,5 +1,12 @@
 # Journal des versions
 
+## v2.4 – 2026-10-05
+- « Terminer l'opération » n'efface plus rien : les photos sont enregistrées dans la galerie du téléphone
+  (annotée si elle l'est, sinon l'originale), rangées dans « Opérations précédentes », et le formulaire est vidé.
+- Nouvelle rubrique « Opérations précédentes » : cocher, décocher, enregistrer en galerie,
+  remettre dans le formulaire, supprimer la sélection.
+- Le nom de l'agent est conservé d'une opération à l'autre.
+
 ## v2.3 – 2026-10-05
 - GPS activé automatiquement à l'ouverture de l'application.
 - Bouton « Terminer l'opération » : efface les photos et le nom de l'agent pour repartir d'un formulaire vide (avec confirmation).
