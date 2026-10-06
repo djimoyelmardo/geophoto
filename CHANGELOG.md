@@ -1,5 +1,13 @@
 # Journal des versions
 
+## v3.0 – 2026-10-06
+- Nouvelle interface : bandeau de position en tête (X, Y, précision), couleurs marines, boutons plus grands.
+- Carte de contrôle (fonds IGN, plan ou vue aérienne) : position en direct, cercle de précision, photos de l'opération.
+- Correction manuelle du point d'une photo sur la carte ; attributs `position_corrigee` et `ecart_gps_m`.
+- Aide intégrée à l'application.
+- Fichier de points daté (`geophoto_AAAAMMJJ_HHMM.geojson` ou `.csv`) pour ne plus écraser les envois précédents.
+- Galerie : une photo non annotée est enregistrée avec son bandeau de coordonnées quand l'incrustation est cochée.
+
 ## v2.4 – 2026-10-05
 - « Terminer l'opération » n'efface plus rien : les photos sont enregistrées dans la galerie du téléphone
   (annotée si elle l'est, sinon l'originale), rangées dans « Opérations précédentes », et le formulaire est vidé.

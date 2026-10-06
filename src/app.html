@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#14532d">
+<meta name="theme-color" content="#0b2f3d">
 <title>GéoPhoto</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -14,107 +14,202 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>/*LIB:proj4*/</script>
 <script>/*LIB:piexif*/</script>
+<script>/*LIB:leaflet*/</script>
+<style>/*CSS:leaflet*/</style>
 <style>
+  /* Mise en page : un bandeau « passerelle » sombre (identité, position, carte), puis des fiches claires.
+     Couleurs tirées de la carte marine : bleu pétrole, vert et rouge de balisage, jaune chamois des terres. */
   :root{
-    --bg:#f4f6f3; --card:#ffffff; --ink:#17201a; --muted:#5b6a60; --line:#d9e0da;
-    --accent:#166534; --accent-ink:#ffffff; --ok:#15803d; --warn:#b45309; --bad:#b91c1c;
+    --page:#e9f0f1; --card:#ffffff; --ink:#0f252d; --muted:#55707a; --line:#d3dfe2; --field:#f2f6f7;
+    --sea:#0b2f3d; --sea-2:#134354; --sea-ink:#ffffff; --sea-muted:#a3c6cf;
+    --accent:#14607a; --accent-ink:#ffffff;
+    --ok:#1b7f55; --warn:#93600a; --bad:#b93a2c;
+    --buff:#f4e3a1; --buff-ink:#4d3c05; --ok-bg:#dcf1e6; --tint:#dcecef;
+    --r-lg:18px; --r-md:12px;
   }
   @media (prefers-color-scheme: dark){
-    :root{ --bg:#101612; --card:#19211c; --ink:#e7efe9; --muted:#9aaba0; --line:#2b372f;
-           --accent:#22a355; --accent-ink:#06130a; --ok:#4ade80; --warn:#fbbf24; --bad:#f87171; }
+    :root{ --page:#06171d; --card:#0d2731; --ink:#e3eef0; --muted:#8eaab3; --line:#1d3f4b; --field:#081f27;
+           --sea:#0e3646; --sea-2:#17495b;
+           --accent:#4bb8ce; --accent-ink:#04222b;
+           --ok:#57c998; --warn:#e7b755; --bad:#f08878;
+           --buff:#5c4b12; --buff-ink:#f8e9b0; --ok-bg:#123c2c; --tint:#12363f; color-scheme:dark; }
   }
   *{box-sizing:border-box}
   [hidden]{display:none!important}
-  body{margin:0;background:var(--bg);color:var(--ink);
-       font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-       padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
-  main{max-width:560px;margin:0 auto}
-  h1{font-size:1.25rem;margin:4px 0 2px}
-  .sub{color:var(--muted);font-size:.85rem;margin:0 0 14px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
-  .card h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
-  .k{font-size:.75rem;color:var(--muted)}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--page);color:var(--ink);
+       font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+       padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+  :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+  /* Passerelle */
+  .bridge{background:var(--sea);color:var(--sea-ink);border-radius:0 0 var(--r-lg) var(--r-lg);
+          padding:calc(10px + env(safe-area-inset-top)) 16px 16px}
+  .bridge-in{max-width:560px;margin:0 auto}
+  .top{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .top svg{flex:none}
+  .top h1{font-size:1.2rem;font-weight:700;letter-spacing:.01em;margin:0;flex:1}
+  .net{font-size:.78rem;font-weight:600;color:var(--sea-muted);display:flex;align-items:center;gap:6px}
+  .net::before{content:"";width:8px;height:8px;border-radius:50%;background:#6fe0a8}
+  .net.off{color:#f3c969} .net.off::before{background:#f3c969}
+  .ghost{font:inherit;font-size:.85rem;font-weight:600;color:var(--sea-ink);background:transparent;
+         border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:7px 14px;cursor:pointer}
+  .acc{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .badge{display:inline-flex;align-items:center;gap:7px;padding:5px 12px 5px 10px;border-radius:999px;
+         font-size:.95rem;font-weight:700;font-variant-numeric:tabular-nums;background:rgba(255,255,255,.1)}
+  .badge::before{content:"";width:10px;height:10px;border-radius:50%;background:currentColor}
+  .badge.ok{color:#7be3b0} .badge.warn{color:#f3c969} .badge.bad{color:#ffa497}
+  #fixInfo{font-size:.82rem;color:var(--sea-muted)}
+  .readout{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}
+  .k{font-size:.76rem;color:var(--sea-muted)}
   .v{font-variant-numeric:tabular-nums;font-weight:600;word-break:break-word}
-  .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.8rem;font-weight:700;border:1px solid currentColor}
-  .chip{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.72rem;font-weight:700;border:1px solid currentColor;margin-right:4px}
+  .v.big{font-size:1.6rem;font-weight:700;line-height:1.15;letter-spacing:-.01em}
+  .v.small{font-size:.95rem;color:#dbeaed}
+  .readout .sep{grid-column:1/-1;height:1px;background:rgba(255,255,255,.12);margin:8px 0 4px}
+  .mapbox{position:relative;z-index:0;margin-top:14px;border-radius:var(--r-md);overflow:hidden;background:var(--sea-2)}
+  #liveMap{height:170px}
+  .maptools{position:absolute;z-index:1000;right:8px;top:8px;display:flex;gap:6px}
+  .mini{font:inherit;font-size:.8rem;font-weight:700;color:#0f252d;background:rgba(255,255,255,.94);
+        border:0;border-radius:8px;padding:7px 10px;min-width:34px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .mapnote{font-size:.78rem;color:var(--sea-muted);margin:8px 0 0}
+  .leaflet-container{background:var(--sea-2);font:inherit}
+  .leaflet-control-attribution{font-size:10px}
+  .pin{background:none;border:0}
+  .bridge .gps-off p{color:var(--sea-muted);margin:0 0 10px;font-size:.92rem}
+  .bridge .gps-off button{font:inherit;font-weight:700;width:100%;padding:13px;border-radius:var(--r-md);border:0;
+        background:#fff;color:var(--sea);cursor:pointer}
+
+  /* Fiches */
+  main{max-width:592px;margin:0 auto;padding:16px 16px 0}
+  .card{background:var(--card);border-radius:var(--r-lg);padding:16px;margin-bottom:14px;
+        box-shadow:0 1px 0 var(--line), 0 0 0 1px var(--line)}
+  .card h2{font-size:1.02rem;font-weight:700;margin:0 0 12px;text-wrap:balance}
+  .card h2 .n{font-weight:600;color:var(--muted)}
+  .sub{color:var(--muted);font-size:.85rem;margin:0}
   .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)} .mut{color:var(--muted)}
-  label{display:block;font-size:.8rem;color:var(--muted);margin:10px 0 4px}
-  input[type=text],textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);
-       background:var(--bg);color:var(--ink);font:inherit}
-  textarea{min-height:70px;resize:vertical}
-  .check{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:.9rem;color:var(--ink)}
-  main button{display:block;width:100%;padding:13px;border-radius:12px;border:1px solid var(--line);
-       background:var(--card);color:var(--ink);font:inherit;font-weight:600;text-align:center;cursor:pointer;margin-top:10px}
+  label{display:block;font-size:.85rem;font-weight:600;color:var(--ink);margin:12px 0 5px}
+  label:first-of-type{margin-top:0}
+  input[type=text],textarea{width:100%;padding:12px;border-radius:var(--r-md);border:1px solid var(--line);
+       background:var(--field);color:var(--ink);font:inherit}
+  input[type=text]:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent)}
+  textarea{min-height:76px;resize:vertical}
+  .check{display:flex;align-items:center;gap:10px;margin:12px 0 0;font-size:.92rem;font-weight:400}
+  .check input{width:20px;height:20px;accent-color:var(--accent);flex:none}
+  main button{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:50px;padding:12px;
+       border-radius:var(--r-md);border:1px solid var(--line);background:var(--card);color:var(--ink);
+       font:inherit;font-weight:650;text-align:center;cursor:pointer;margin-top:12px}
   main button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  main button.shoot{min-height:60px;font-size:1.08rem;margin-top:16px}
   main button:disabled{opacity:.45;cursor:not-allowed}
-  .row{display:flex;gap:10px} .row > *{flex:1}
-  .item{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line);align-items:flex-start}
-  .item:first-child{border-top:0}
-  .item input[type=checkbox]{width:22px;height:22px;margin-top:30px;flex:none}
-  .item img{width:84px;height:84px;object-fit:cover;border-radius:10px;flex:none;background:var(--line)}
-  .item .meta{font-size:.82rem;min-width:0;flex:1}
-  .item .meta b{display:block;font-size:.85rem;word-break:break-all}
-  .item .acts{display:flex;gap:14px;margin-top:6px;flex-wrap:wrap}
-  main .item .acts button{all:unset;cursor:pointer;color:var(--accent);font-weight:600;font-size:.85rem}
+  main button:active:not(:disabled){transform:translateY(1px)}
+  .row{display:flex;gap:10px} .row > *{flex:1;min-width:0}
+  .item{display:flex;gap:12px;padding:12px 0;border-top:1px solid var(--line);align-items:flex-start}
+  .item:first-child{border-top:0;padding-top:0}
+  .item input[type=checkbox]{width:22px;height:22px;margin-top:29px;flex:none;accent-color:var(--accent)}
+  .item img{width:80px;height:80px;object-fit:cover;border-radius:10px;flex:none;background:var(--tint)}
+  .item .meta{font-size:.84rem;min-width:0;flex:1;display:grid;gap:3px}
+  .item .meta b{font-size:.8rem;overflow-wrap:anywhere;letter-spacing:-.01em}
+  .item .coords{font-variant-numeric:tabular-nums;color:var(--muted)}
+  .chip{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.74rem;font-weight:700;margin:0 4px 0 0;
+        background:var(--tint);color:var(--ink)}
+  .chip.todo{background:var(--buff);color:var(--buff-ink)}
+  .chip.done{background:var(--ok-bg);color:var(--ok)}
+  .item .acts{display:flex;gap:16px;margin-top:4px;flex-wrap:wrap}
+  main .item .acts button{all:unset;cursor:pointer;color:var(--accent);font-weight:650;font-size:.86rem;padding:4px 0}
   main .item .acts button.del{color:var(--bad)}
-  summary{cursor:pointer}
-  #msg,#selInfo,#store,#archInfo{font-size:.85rem;color:var(--muted);min-height:1.2em;margin-top:8px}
-  .empty{color:var(--muted);font-size:.9rem;margin:0}
-  .head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  main .item .acts button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  summary{cursor:pointer;list-style-position:outside;margin-left:18px}
+  summary h2{display:inline;margin:0}
+  #msg,#selInfo,#store,#archInfo{font-size:.86rem;color:var(--muted);min-height:1.2em;margin-top:10px}
+  #msg:not(:empty){background:var(--tint);color:var(--ink);padding:10px 12px;border-radius:var(--r-md)}
+  .empty{color:var(--muted);font-size:.92rem;margin:0}
+  .finish{border-top:1px solid var(--line);margin-top:16px;padding-top:4px}
+  .foot{color:var(--muted);font-size:.8rem;text-align:center;margin:4px 0 0}
+
+  /* Écrans plein cadre : aide, position */
+  .sheet{position:fixed;inset:0;z-index:20;background:var(--page);color:var(--ink);display:flex;flex-direction:column;
+         padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+  .sheet .bar{display:flex;align-items:center;gap:8px;padding:10px 12px;flex:none;background:var(--sea);color:#fff}
+  .sheet .bar .t{flex:1;font-weight:700;font-size:1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sheet .bar button{font:inherit;font-weight:650;border-radius:10px;border:1px solid rgba(255,255,255,.28);background:transparent;
+         color:#fff;padding:9px 13px;cursor:pointer;flex:none}
+  .sheet .bar button.primary{background:#fff;color:var(--sea);border-color:#fff}
+  .sheet .body{flex:1;min-height:0;overflow-y:auto;padding:16px}
+  .help{max-width:560px;margin:0 auto}
+  .help h3{font-size:1.02rem;margin:22px 0 6px} .help h3:first-child{margin-top:0}
+  .help p,.help li{font-size:.94rem;margin:0 0 6px} .help ol{padding-left:22px;margin:0}
+  #posMapWrap{position:relative;z-index:0;flex:1;min-height:0}
+  #posMap{position:absolute;inset:0}
+  .posinfo{flex:none;padding:12px 16px;background:var(--card);border-top:1px solid var(--line)}
+  .posinfo .xy{font-variant-numeric:tabular-nums;font-weight:700;font-size:1.05rem}
+  .posinfo .mv{font-size:.86rem;color:var(--muted);margin-top:2px}
+  .posinfo button{font:inherit;font-weight:650;margin-top:10px;width:100%;min-height:46px;border-radius:var(--r-md);
+        border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+  .posinfo button:disabled{opacity:.45}
 
   /* Éditeur d'annotation : toujours sombre, plein écran */
-  #ed{position:fixed;inset:0;z-index:10;background:#0c0f0d;color:#fff;display:flex;flex-direction:column;
+  #ed{position:fixed;inset:0;z-index:30;background:#051319;color:#fff;display:flex;flex-direction:column;
       padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
   #ed .bar{display:flex;align-items:center;gap:8px;padding:8px 10px;flex:none}
-  #ed .bar .t{flex:1;text-align:center;font-size:.85rem;color:#b9c4bd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  #ed button{font:inherit;font-weight:600;border-radius:10px;border:1px solid #39443d;background:#1b221e;color:#fff;
+  #ed .bar .t{flex:1;text-align:center;font-size:.85rem;color:#a3c6cf;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #ed button{font:inherit;font-weight:650;border-radius:10px;border:1px solid #23505f;background:#0d2a35;color:#fff;
              padding:9px 12px;cursor:pointer;flex:none}
-  #ed button.primary{background:#22a355;border-color:#22a355;color:#06130a}
-  #ed button.on{background:#fff;color:#0c0f0d;border-color:#fff}
+  #ed button.primary{background:#4bb8ce;border-color:#4bb8ce;color:#04222b}
+  #ed button.on{background:#fff;color:#051319;border-color:#fff}
   #ed button:disabled{opacity:.4}
   #edWrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
   #edCanvas{touch-action:none;display:block;background:#000}
   #ed .scroll{display:flex;gap:6px;overflow-x:auto;padding:6px 10px;flex:none;-webkit-overflow-scrolling:touch}
-  #ed .sw{width:34px;height:34px;border-radius:50%;padding:0;border:2px solid #39443d}
+  #ed .sw{width:34px;height:34px;border-radius:50%;padding:0;border:2px solid #23505f}
   #ed .sw.on{outline:3px solid #fff;outline-offset:1px;background:inherit}
-  #ed input[type=text]{background:#1b221e;color:#fff;border-color:#39443d}
+  #ed input[type=text]{background:#0d2a35;color:#fff;border-color:#23505f}
   #edText{display:flex;gap:6px;padding:6px 10px;flex:none}
   #edText input{flex:1;min-width:0}
-  #edHint{font-size:.78rem;color:#b9c4bd;padding:0 10px 4px;flex:none;min-height:1.3em}
+  #edHint{font-size:.8rem;color:#a3c6cf;padding:0 10px 4px;flex:none;min-height:1.3em}
+  @media (prefers-reduced-motion: reduce){ *{transition:none!important;animation:none!important;scroll-behavior:auto!important} }
 </style>
 </head>
 <body>
-<main>
-  <div class="head">
-    <h1>GéoPhoto</h1>
-    <span id="net" class="chip mut"></span>
+<header class="bridge">
+  <div class="bridge-in">
+    <div class="top">
+      <svg width="26" height="26" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4c-8.3 0-15 6.5-15 14.6C9 29.5 24 44 24 44s15-14.5 15-25.4C39 10.5 32.3 4 24 4z" fill="#fff"/><circle cx="24" cy="19" r="8.4" fill="#14607a"/><circle cx="24" cy="19" r="4.6" fill="#0b2f3d"/><circle cx="21.6" cy="16.8" r="1.5" fill="#fff"/></svg>
+      <h1>GéoPhoto</h1>
+      <span id="net" class="net"></span>
+      <button class="ghost" id="btnHelp">Aide</button>
+    </div>
+    <div id="gpsOff" class="gps-off">
+      <p id="gpsOffText">Recherche de la position…</p>
+      <button id="btnGps">Activer le GPS</button>
+    </div>
+    <div id="gpsOn" hidden>
+      <div class="acc"><span id="accBadge" class="badge bad">en attente…</span><span id="fixInfo"></span></div>
+      <div class="readout">
+        <div><div class="k">X Lambert-93 (m)</div><div class="v big" id="vx">–</div></div>
+        <div><div class="k">Y Lambert-93 (m)</div><div class="v big" id="vy">–</div></div>
+        <div class="sep"></div>
+        <div><div class="k">Latitude WGS84</div><div class="v small" id="vlat">–</div></div>
+        <div><div class="k">Longitude WGS84</div><div class="v small" id="vlon">–</div></div>
+      </div>
+      <div class="mapbox" id="liveBox" hidden>
+        <div id="liveMap"></div>
+        <div class="maptools">
+          <button class="mini" id="liveOut" aria-label="Dézoomer">−</button>
+          <button class="mini" id="liveIn" aria-label="Zoomer">+</button>
+          <button class="mini" data-base>Vue aérienne</button>
+        </div>
+      </div>
+      <p class="mapnote" id="mapNote" hidden></p>
+    </div>
   </div>
-  <p class="sub">Photos géolocalisées, annotées, conservées sur ce téléphone</p>
+</header>
 
+<main>
   <section class="card" id="install" hidden>
     <h2>Installer l'application</h2>
     <p class="empty" id="installText"></p>
     <button class="primary" id="btnInstall" hidden>Installer GéoPhoto</button>
     <button id="btnInstallLater">Plus tard</button>
-  </section>
-
-  <section class="card">
-    <h2>Position</h2>
-    <div id="gpsOff">
-      <p class="empty" id="gpsOffText">Le GPS n'est pas encore activé.</p>
-      <button class="primary" id="btnGps">Activer le GPS</button>
-    </div>
-    <div id="gpsOn" hidden>
-      <p style="margin:0 0 10px"><span id="accBadge" class="badge bad">en attente…</span>
-         <span class="k" id="fixInfo"></span></p>
-      <div class="grid">
-        <div><div class="k">X Lambert-93 (m)</div><div class="v" id="vx">–</div></div>
-        <div><div class="k">Y Lambert-93 (m)</div><div class="v" id="vy">–</div></div>
-        <div><div class="k">Latitude WGS84</div><div class="v" id="vlat">–</div></div>
-        <div><div class="k">Longitude WGS84</div><div class="v" id="vlon">–</div></div>
-      </div>
-    </div>
   </section>
 
   <section class="card">
@@ -126,28 +221,30 @@
     <label class="check"><input type="checkbox" id="burn" checked> Incruster les coordonnées sur l'image</label>
     <label class="check"><input type="checkbox" id="autoEdit" checked> Ouvrir l'annotation après la prise</label>
     <input type="file" id="file" accept="image/*" capture="environment" hidden>
-    <button class="primary" id="btnShoot">Prendre la photo</button>
-    <div id="msg"></div>
+    <button class="primary shoot" id="btnShoot"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.6"/></svg>Prendre la photo</button>
+    <div id="msg" role="status"></div>
   </section>
 
   <section class="card">
-    <h2>Photos enregistrées (<span id="count">0</span>)</h2>
+    <h2>Photos de l'opération <span class="n">(<span id="count">0</span>)</span></h2>
     <div id="list"><p class="empty">Aucune photo pour l'instant.</p></div>
     <div id="selInfo"></div>
     <label class="check"><input type="checkbox" id="withOrig" checked> Joindre aussi les photos originales</label>
     <div class="row">
-      <button id="btnGeojson" disabled>Télécharger le GeoJSON</button>
-      <button id="btnShare" class="primary" disabled>Partager la sélection</button>
+      <button id="btnGeojson" disabled>Télécharger les points</button>
+      <button id="btnShare" class="primary" disabled>Partager par mail</button>
     </div>
     <div id="store"></div>
-    <button id="btnFinish">Terminer l'opération</button>
-    <p class="sub" style="margin:6px 0 0">Enregistre les photos dans la galerie du téléphone, les range dans « Opérations précédentes » et vide le formulaire. Le nom de l'agent est conservé.</p>
+    <div class="finish">
+      <button id="btnFinish">Terminer l'opération</button>
+      <p class="sub" style="margin-top:8px">Enregistre les photos dans la galerie du téléphone, les range dans « Opérations précédentes » et vide le formulaire. Le nom de l'agent est conservé.</p>
+    </div>
   </section>
 
   <section class="card" id="archCard" hidden>
     <details id="archDetails">
-      <summary><h2 style="display:inline">Opérations précédentes (<span id="archCount">0</span>)</h2></summary>
-      <div id="archList" style="margin-top:10px"></div>
+      <summary><h2>Opérations précédentes <span class="n">(<span id="archCount">0</span>)</span></h2></summary>
+      <div id="archList" style="margin-top:14px"></div>
       <div id="archInfo"></div>
       <div class="row">
         <button id="archAll">Tout cocher</button>
@@ -159,8 +256,51 @@
       </div>
     </details>
   </section>
-  <p class="sub" style="text-align:center;margin:0">GéoPhoto v2.4</p>
+  <p class="foot">GéoPhoto v3.0</p>
 </main>
+
+<div id="help" class="sheet" hidden>
+  <div class="bar"><div class="t">Aide</div><button id="helpClose" class="primary">Fermer</button></div>
+  <div class="body"><div class="help">
+    <h3>Installer l'application</h3>
+    <p><b>iPhone :</b> ouvrez la page dans Safari, touchez Partager, puis « Sur l'écran d'accueil ».</p>
+    <p><b>Android :</b> ouvrez la page dans Chrome, puis touchez « Installer GéoPhoto » ou le menu ⋮ et « Installer l'application ».</p>
+    <h3>Autoriser la localisation</h3>
+    <p><b>iPhone :</b> Réglages, Confidentialité et sécurité, Service de localisation, Sites web Safari : choisissez « Lorsque l'app est active » et activez « Position exacte ».</p>
+    <p><b>Android :</b> acceptez la demande de Chrome. En cas de refus, touchez le cadenas à gauche de l'adresse, Autorisations, Position.</p>
+    <p>Attendez que la pastille de précision passe au vert (5 m ou moins) avant de photographier. En extérieur, comptez 10 à 20 secondes.</p>
+    <h3>Faire un relevé</h3>
+    <ol>
+      <li>Saisissez votre nom et un commentaire.</li>
+      <li>Touchez « Prendre la photo ».</li>
+      <li>Annotez si besoin : trait, flèche, rectangle, ellipse, texte, cote, repère numéroté. Puis « Enregistrer ».</li>
+      <li>Vérifiez le point sur la carte. S'il est décalé, touchez « Position » sur la photo et déplacez le repère.</li>
+      <li>Touchez « Partager par mail », choisissez votre application mail et saisissez le destinataire.</li>
+      <li>Une fois le mail parti, touchez « Terminer l'opération ».</li>
+    </ol>
+    <h3>Terminer l'opération</h3>
+    <p><b>iPhone :</b> dans la feuille qui s'ouvre, touchez « Enregistrer l'image ». Si vous choisissez autre chose, les photos ne vont pas dans la galerie : relancez l'enregistrement depuis « Opérations précédentes ».</p>
+    <p><b>Android :</b> les photos vont dans le dossier Téléchargements, visible dans la galerie. Autorisez les téléchargements multiples si Chrome le demande.</p>
+    <p>Rien n'est supprimé : les photos restent dans « Opérations précédentes » jusqu'à ce que vous les supprimiez vous-même.</p>
+    <h3>Sans réseau</h3>
+    <p>L'application, le GPS, la photo et l'annotation fonctionnent hors ligne. Le fond de carte ne s'affiche pas, et le mail part quand le réseau revient.</p>
+    <h3>Ouvrir les relevés dans QGIS</h3>
+    <p>Rangez les pièces jointes dans un même dossier. Depuis un iPhone, glissez le fichier <b>.geojson</b> dans QGIS. Depuis un Android, le fichier est un <b>.csv</b> : Couche, Ajouter une couche, Couche de texte délimité, délimiteur point-virgule, X = lon, Y = lat, EPSG:4326.</p>
+    <p>La table contient le commentaire, l'agent, X et Y en Lambert-93, la précision et l'indication d'une position corrigée à la main.</p>
+  </div></div>
+</div>
+
+<div id="pos" class="sheet" hidden>
+  <div class="bar"><button id="posCancel">Annuler</button><div class="t" id="posTitle">Position</div><button id="posSave" class="primary">Enregistrer</button></div>
+  <div id="posMapWrap"><div id="posMap"></div>
+    <div class="maptools"><button class="mini" data-base>Vue aérienne</button></div>
+  </div>
+  <div class="posinfo">
+    <div class="xy" id="posXY"></div>
+    <div class="mv" id="posMove"></div>
+    <button id="posReset">Revenir au relevé GPS</button>
+  </div>
+</div>
 
 <div id="ed" hidden>
   <div class="bar">
@@ -259,7 +399,9 @@ function props(m){
     x_l93: m.l93 ? m.l93.x : null, y_l93: m.l93 ? m.l93.y : null,
     lon: +m.pos.lon.toFixed(7), lat: +m.pos.lat.toFixed(7),
     precision_m: +m.pos.acc.toFixed(1), altitude_m: m.pos.alt != null ? +m.pos.alt.toFixed(1) : null,
-    annotee: (m.shapes || []).length > 0
+    annotee: (m.shapes || []).length > 0,
+    position_corrigee: !!m.posManual,
+    ecart_gps_m: m.posManual && m.posGps ? +distM(m.posGps.lat, m.posGps.lon, m.pos.lat, m.pos.lon).toFixed(1) : null
   };
 }
 
@@ -272,10 +414,20 @@ function toGeoJSON(metas){
 }
 
 function toCSV(metas){
-  const cols = ['id','fichier','fichier_original','date','auteur','commentaire','x_l93','y_l93','lon','lat','precision_m','altitude_m','annotee'];
+  const cols = ['id','fichier','fichier_original','date','auteur','commentaire','x_l93','y_l93','lon','lat','precision_m','altitude_m','annotee','position_corrigee','ecart_gps_m'];
   const esc = v => v == null ? '' : '"' + String(v).replace(/"/g,'""') + '"';
   return [cols.join(';')].concat(metas.map(m => { const p = props(m); return cols.map(c => esc(p[c])).join(';'); })).join('\r\n');
 }
+
+// Distance en mètres entre deux points WGS84 (formule de haversine)
+function distM(lat1, lon1, lat2, lon2){
+  const R = 6371008.8, r = Math.PI / 180, dLat = (lat2 - lat1) * r, dLon = (lon2 - lon1) * r;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*r) * Math.cos(lat2*r) * Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// Horodatage pour les noms de fichiers : 20261006_0142
+function stamp(d){ return d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '_' + pad(d.getHours()) + pad(d.getMinutes()); }
 
 function contrast(c){ return (c === '#facc15' || c === '#ffffff') ? '#111111' : '#ffffff'; }
 
@@ -394,6 +546,7 @@ function startGps(){
   if(!('geolocation' in navigator)){ say("La géolocalisation n'est pas disponible sur cet appareil."); return; }
   if(watchId != null) return;
   $('gpsOff').hidden = true; $('gpsOn').hidden = false;
+  $('gpsOffText').textContent = 'Recherche de la position…';
   watchId = navigator.geolocation.watchPosition(onFix, onGpsError, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
 }
 function onFix(g){
@@ -411,7 +564,7 @@ function onGpsError(err){
     return;
   }
   const b = $('accBadge'); b.className = 'badge bad'; b.textContent = 'signal indisponible';
-  $('fixInfo').textContent = ' Placez-vous en extérieur, ciel dégagé.';
+  $('fixInfo').textContent = 'Placez-vous en extérieur, ciel dégagé.';
 }
 function showPosition(){
   const p = bestPosition(fixes, Date.now(), 20000);
@@ -419,12 +572,13 @@ function showPosition(){
   const b = $('accBadge');
   b.className = 'badge ' + (p.acc <= 5 ? 'ok' : p.acc <= 15 ? 'warn' : 'bad');
   b.textContent = '± ' + fmt(p.acc, 1) + ' m';
-  $('fixInfo').textContent = ' moyenne de ' + p.n + ' relevé' + (p.n > 1 ? 's' : '');
+  $('fixInfo').textContent = (p.acc <= 5 ? 'Précision bonne' : p.acc <= 15 ? 'Précision moyenne, patientez' : 'Précision faible, patientez') + ', ' + p.n + ' relevé' + (p.n > 1 ? 's' : '');
   $('vlat').textContent = p.lat.toFixed(6);
   $('vlon').textContent = p.lon.toFixed(6);
   const l = toL93(p.lon, p.lat);
   $('vx').textContent = l ? fmt(l.x, 2) : 'hors zone';
   $('vy').textContent = l ? fmt(l.y, 2) : 'hors zone';
+  try{ updateLiveMap(p); }catch(e){ console.warn('Carte indisponible', e); }
 }
 function freshFix(){
   return new Promise(res => navigator.geolocation.getCurrentPosition(
@@ -451,7 +605,7 @@ function bannerLines(m){
   const d = new Date(m.date);
   const stamp = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());
   return [
-    (m.l93 ? 'X ' + fmt(m.l93.x,2) + '   Y ' + fmt(m.l93.y,2) + '  (Lambert-93)' : 'Hors zone Lambert-93') + '   ± ' + fmt(m.pos.acc,1) + ' m',
+    (m.l93 ? 'X ' + fmt(m.l93.x,2) + '   Y ' + fmt(m.l93.y,2) + '  (Lambert-93)' : 'Hors zone Lambert-93') + (m.posManual ? '   position corrigée' : '   ± ' + fmt(m.pos.acc,1) + ' m'),
     m.pos.lat.toFixed(6) + ', ' + m.pos.lon.toFixed(6) + ' (WGS84)  ·  ' + stamp + (m.auteur ? '  ·  ' + m.auteur : '')
   ];
 }
@@ -650,13 +804,14 @@ function itemRow(m, set, onToggle, extra){
   const box = document.createElement('div'); box.className = 'meta';
   const b = document.createElement('b'); b.textContent = m.name;
   const chips = document.createElement('div');
-  const c1 = document.createElement('span'); c1.className = 'chip ' + (m.shared ? 'ok' : 'warn'); c1.textContent = m.shared ? 'partagée' : (m.archived ? 'non partagée' : 'à envoyer');
+  const c1 = document.createElement('span'); c1.className = 'chip ' + (m.shared ? 'done' : 'todo'); c1.textContent = m.shared ? 'partagée' : (m.archived ? 'non partagée' : 'à envoyer');
   chips.appendChild(c1);
-  if((m.shapes || []).length){ const c2 = document.createElement('span'); c2.className = 'chip mut'; c2.textContent = 'annotée'; chips.appendChild(c2); }
-  const t = document.createElement('div');
-  t.textContent = (m.l93 ? 'X ' + fmt(m.l93.x,2) + ' · Y ' + fmt(m.l93.y,2) : m.pos.lat.toFixed(6) + ', ' + m.pos.lon.toFixed(6)) + ' · ± ' + fmt(m.pos.acc,1) + ' m';
-  const c = document.createElement('div'); c.textContent = m.commentaire || '';
-  box.append(b, chips, t, c);
+  if((m.shapes || []).length){ const c2 = document.createElement('span'); c2.className = 'chip'; c2.textContent = 'annotée'; chips.appendChild(c2); }
+  if(m.posManual){ const c3 = document.createElement('span'); c3.className = 'chip'; c3.textContent = 'position corrigée'; chips.appendChild(c3); }
+  const t = document.createElement('div'); t.className = 'coords';
+  t.textContent = (m.l93 ? 'X ' + fmt(m.l93.x,2) + ' · Y ' + fmt(m.l93.y,2) : m.pos.lat.toFixed(6) + ', ' + m.pos.lon.toFixed(6)) + (m.posManual ? '' : ' · ± ' + fmt(m.pos.acc,1) + ' m');
+  box.append(b, chips, t);
+  if(m.commentaire){ const c = document.createElement('div'); c.textContent = m.commentaire; box.appendChild(c); }
   if(extra){ const x = document.createElement('div'); x.className = 'mut'; x.textContent = extra; box.appendChild(x); }
   const acts = document.createElement('div'); acts.className = 'acts';
   const dl = document.createElement('button'); dl.textContent = 'Télécharger';
@@ -680,7 +835,8 @@ function render(){
       if(a3.dataset.sure !== '1'){ a3.dataset.sure = '1'; a3.textContent = 'Confirmer la suppression'; setTimeout(() => { a3.dataset.sure = ''; a3.textContent = 'Supprimer'; }, 4000); return; }
       await dbDel(m.id); metas = metas.filter(x => x.id !== m.id); sel.delete(m.id); render();
     };
-    r.acts.insertBefore(a1, r.dl); r.acts.appendChild(a3); list.appendChild(r.d);
+    const a2 = document.createElement('button'); a2.textContent = 'Position'; a2.onclick = () => openPosition(m.id);
+    r.acts.insertBefore(a1, r.dl); r.acts.insertBefore(a2, r.dl); r.acts.appendChild(a3); list.appendChild(r.d);
   });
 
   $('archCard').hidden = !a.length; $('archCount').textContent = a.length;
@@ -694,6 +850,7 @@ function render(){
 
   const total = metas.reduce((s, m) => s + m.size + m.sizeOrig, 0);
   $('store').textContent = metas.length ? metas.length + ' photo' + (metas.length > 1 ? 's' : '') + ' · ' + mo(total) + ' conservés sur ce téléphone' : '';
+  try{ drawLivePhotos(); }catch(e){}
   prepareShare(); prepareGallery(); prepareArch();
 }
 
@@ -725,8 +882,8 @@ async function prepareShare(){
     photos.push(new File([b.final], m.name, { type: 'image/jpeg' })); bytes += b.final.byteLength;
     if(withOrig){ photos.push(new File([b.orig], m.origName, { type: 'image/jpeg' })); bytes += b.orig.byteLength; }
   }
-  const geo = new File([JSON.stringify(toGeoJSON(list), null, 1)], 'geophoto.geojson', { type: 'application/geo+json' });
-  const csv = new File(['﻿' + toCSV(list)], 'geophoto.csv', { type: 'text/csv' });
+  const geo = new File([JSON.stringify(toGeoJSON(list), null, 1)], 'geophoto_' + stamp(new Date()) + '.geojson', { type: 'application/geo+json' });
+  const csv = new File(['﻿' + toCSV(list)], 'geophoto_' + stamp(new Date()) + '.csv', { type: 'text/csv' });
   prepared = { ids: list.map(m => m.id), tries: [[...photos, geo], [...photos, csv], photos], nPhotos: photos.length, text: mailText(list) };
   $('selInfo').textContent = 'Sélection : ' + list.length + ' photo' + (list.length > 1 ? 's' : '') + ', ' + mo(bytes) +
     (bytes > 20*1048576 ? ' — au-delà de la limite habituelle des mails (20 à 25 Mo) : réduisez la sélection ou décochez les originaux.' : '');
@@ -756,7 +913,7 @@ async function share(){
       for(const id of p.ids){ const m = metas.find(x => x.id === id); if(m){ m.shared = true; await dbPut(m); } }
       render();
       say((kind === 'geojson' ? 'Partage effectué.'
-        : kind === 'csv' ? 'Partage effectué. Fichier de points joint au format CSV (geophoto.csv), le GeoJSON n\'étant pas accepté par ce téléphone.'
+        : kind === 'csv' ? 'Partage effectué. Fichier de points joint au format CSV, le GeoJSON n\'étant pas accepté par ce téléphone.'
         : "Partagé sans fichier de points : les coordonnées sont dans le texte du mail et dans l'EXIF des photos.") + " Une fois le mail envoyé, appuyez sur « Terminer l'opération » pour une nouvelle saisie.");
       return;
     }catch(e){
@@ -771,11 +928,11 @@ async function share(){
 }
 
 /* ---------- Galerie du téléphone ---------- */
-// Photo annotée si elle porte des annotations, sinon la photo originale
+// Photo finale (annotations et bandeau de coordonnées) dès qu'elle diffère de l'originale, sinon l'originale
 async function galleryFiles(list){
   const out = [];
   for(const m of list){
-    const b = await dbBlobs(m.id), ann = (m.shapes || []).length > 0;
+    const b = await dbBlobs(m.id), ann = (m.shapes || []).length > 0 || !!m.burn;
     out.push(new File([ann ? b.final : b.orig], ann ? m.name : m.origName, { type: 'image/jpeg' }));
   }
   return out;
@@ -869,15 +1026,129 @@ $('archDelete').onclick = async () => {
   render(); say(list.length + ' photo' + (list.length > 1 ? 's supprimées' : ' supprimée') + " de l'application.");
 };
 
+/* ---------- Cartes : fonds IGN (Géoplateforme, accès libre) ---------- */
+const GEOPF = 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}';
+const BASES = { plan:  GEOPF + '&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&FORMAT=image/png',
+                ortho: GEOPF + '&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&FORMAT=image/jpeg' };
+let baseKind = 'plan';
+try{ if(localStorage.getItem('geophoto_fond') === 'ortho') baseKind = 'ortho'; }catch(e){}
+const maps = [];
+function createMap(el, interactive){
+  const map = L.map(el, { zoomControl: interactive, dragging: interactive, touchZoom: interactive, doubleClickZoom: interactive,
+                          scrollWheelZoom: interactive, boxZoom: false, keyboard: interactive, zoomSnap: 0.5 });
+  map.attributionControl.setPrefix(false);
+  map._base = L.tileLayer(BASES[baseKind], { maxNativeZoom: 19, maxZoom: 21, attribution: '© IGN' }).addTo(map);
+  maps.push(map); return map;
+}
+function syncBaseButtons(){ document.querySelectorAll('[data-base]').forEach(b => { b.textContent = baseKind === 'plan' ? 'Vue aérienne' : 'Plan'; }); }
+function toggleBase(){
+  baseKind = baseKind === 'plan' ? 'ortho' : 'plan';
+  try{ localStorage.setItem('geophoto_fond', baseKind); }catch(e){}
+  maps.forEach(m => m._base.setUrl(BASES[baseKind])); syncBaseButtons();
+}
+document.querySelectorAll('[data-base]').forEach(b => { b.onclick = toggleBase; });
+
+// Carte de contrôle : position en direct, cercle de précision, photos de l'opération
+let live = null;
+function updateLiveMap(p){
+  if(typeof L === 'undefined') return;
+  const ll = [p.lat, p.lon];
+  if(!live){
+    $('liveBox').hidden = false;
+    const map = createMap($('liveMap'), false);
+    live = { map,
+      acc: L.circle(ll, { radius: p.acc, color: '#5cc4d8', weight: 1, fillColor: '#5cc4d8', fillOpacity: 0.2, interactive: false }).addTo(map),
+      pts: L.layerGroup().addTo(map),
+      me: L.circleMarker(ll, { radius: 7, color: '#ffffff', weight: 3, fillColor: '#14607a', fillOpacity: 1, interactive: false }).addTo(map) };
+    map.setView(ll, 18); syncBaseButtons(); drawLivePhotos();
+  }
+  live.me.setLatLng(ll); live.acc.setLatLng(ll).setRadius(p.acc);
+  live.map.setView(ll, live.map.getZoom(), { animate: false });
+}
+function drawLivePhotos(){
+  if(!live) return;
+  live.pts.clearLayers();
+  cur().forEach(m => L.circleMarker([m.pos.lat, m.pos.lon], { radius: 5, color: '#0b2f3d', weight: 2, fillColor: '#f4e3a1', fillOpacity: 1, interactive: false }).addTo(live.pts));
+}
+$('liveIn').onclick = () => { if(live) live.map.zoomIn(1); };
+$('liveOut').onclick = () => { if(live) live.map.zoomOut(1); };
+
+/* ---------- Correction manuelle de la position d'une photo ---------- */
+const posS = { m: null, map: null, marker: null, ghost: null, ghostAcc: null };
+const PIN_HTML = '<svg width="36" height="46" viewBox="0 0 36 46"><path d="M18 1C8.6 1 1 8.4 1 17.6 1 30 18 45 18 45s17-15 17-27.4C35 8.4 27.4 1 18 1z" fill="#b93a2c" stroke="#fff" stroke-width="2"/><circle cx="18" cy="17.5" r="6" fill="#fff"/></svg>';
+function posInfo(){
+  const ll = posS.marker.getLatLng(), g = posS.ghost.getLatLng();
+  const d = distM(g.lat, g.lng, ll.lat, ll.lng), l = toL93(ll.lng, ll.lat);
+  $('posXY').textContent = l ? 'X ' + fmt(l.x, 2) + '   Y ' + fmt(l.y, 2) : ll.lat.toFixed(6) + ', ' + ll.lng.toFixed(6);
+  const mv = $('posMove');
+  mv.textContent = d < 0.5 ? 'Sur le relevé GPS (± ' + fmt(posS.m.pos.acc, 1) + ' m). Déplacez le repère rouge ou touchez la carte.'
+                           : 'Déplacé de ' + fmt(d, 1) + ' m par rapport au relevé GPS (point bleu).';
+  mv.className = 'mv' + (d > Math.max(50, 5 * posS.m.pos.acc) ? ' warn' : '');
+  $('posReset').disabled = d < 0.5;
+}
+function openPosition(id){
+  const m = metas.find(x => x.id === id); if(!m) return;
+  if(typeof L === 'undefined'){ say('La carte est indisponible.'); return; }
+  posS.m = m; $('posTitle').textContent = m.name; $('pos').hidden = false; document.body.style.overflow = 'hidden';
+  const g = m.posGps || m.pos, ll = [m.pos.lat, m.pos.lon], gl = [g.lat, g.lon];
+  if(!posS.map){
+    const map = posS.map = createMap($('posMap'), true);
+    posS.ghostAcc = L.circle(gl, { radius: m.pos.acc, color: '#14607a', weight: 1, fillColor: '#5cc4d8', fillOpacity: 0.2, interactive: false }).addTo(map);
+    posS.ghost = L.circleMarker(gl, { radius: 6, color: '#ffffff', weight: 2, fillColor: '#14607a', fillOpacity: 1, interactive: false }).addTo(map);
+    posS.marker = L.marker(ll, { draggable: true, autoPan: true, icon: L.divIcon({ className: 'pin', html: PIN_HTML, iconSize: [36, 46], iconAnchor: [18, 45] }) }).addTo(map);
+    posS.marker.on('drag', posInfo);
+    map.on('click', e => { posS.marker.setLatLng(e.latlng); posInfo(); });
+    syncBaseButtons();
+  }
+  posS.ghost.setLatLng(gl); posS.ghostAcc.setLatLng(gl).setRadius(m.pos.acc); posS.marker.setLatLng(ll);
+  posS.map.invalidateSize(); posS.map.setView(ll, 19, { animate: false });
+  setTimeout(() => posS.map.invalidateSize(), 80);
+  posInfo();
+}
+function closePosition(){ $('pos').hidden = true; document.body.style.overflow = ''; posS.m = null; }
+
+// Régénère la photo finale et l'EXIF des deux fichiers après un changement de métadonnées
+async function rebuild(m, next){
+  const b = await dbBlobs(m.id);
+  const img = await loadImage(new Blob([b.orig], { type: 'image/jpeg' }));
+  const orig = binToBuf(piexif.insert(exifFor(next), bufToBin(b.orig)));
+  const r = renderFinal(img, next);
+  next.thumb = r.thumb; next.size = r.final.byteLength; next.sizeOrig = orig.byteLength;
+  await dbPut(next, { orig, final: r.final });
+  metas[metas.indexOf(m)] = next;
+}
+$('posCancel').onclick = closePosition;
+$('posReset').onclick = () => { posS.marker.setLatLng(posS.ghost.getLatLng()); posInfo(); };
+$('posSave').onclick = async () => {
+  const m = posS.m; if(!m) return;
+  const ll = posS.marker.getLatLng(), g = m.posGps || { lat: m.pos.lat, lon: m.pos.lon };
+  const manual = distM(g.lat, g.lon, ll.lat, ll.lng) >= 0.5;
+  const lat = manual ? ll.lat : g.lat, lon = manual ? ll.lng : g.lon;
+  const next = Object.assign({}, m, { pos: Object.assign({}, m.pos, { lat, lon }), l93: toL93(lon, lat), posManual: manual, shared: false });
+  if(manual) next.posGps = g; else delete next.posGps;
+  $('posSave').disabled = true;
+  try{
+    await rebuild(m, next); sel.add(next.id); closePosition(); render();
+    say(manual ? 'Position corrigée. Les coordonnées de la photo et du fichier de points sont à jour.' : 'Position du relevé GPS rétablie.');
+  }catch(e){ console.error(e); $('posMove').textContent = "Échec de l'enregistrement : " + (e && e.message || e); }
+  $('posSave').disabled = false;
+};
+
+/* ---------- Aide ---------- */
+$('btnHelp').onclick = () => { $('help').hidden = false; document.body.style.overflow = 'hidden'; };
+$('helpClose').onclick = () => { $('help').hidden = true; document.body.style.overflow = ''; };
+
 function netState(){
-  const n = $('net'); n.textContent = navigator.onLine ? 'en ligne' : 'hors ligne'; n.className = 'chip ' + (navigator.onLine ? 'mut' : 'warn');
+  const n = $('net'); n.textContent = navigator.onLine ? 'En ligne' : 'Hors ligne'; n.className = 'net' + (navigator.onLine ? '' : ' off');
+  const note = $('mapNote'); note.hidden = navigator.onLine;
+  note.textContent = navigator.onLine ? '' : 'Fond de carte indisponible hors ligne : le point et sa précision restent affichés.';
 }
 window.addEventListener('online', netState); window.addEventListener('offline', netState);
 
 $('btnGps').onclick = startGps;
 $('btnShoot').onclick = () => { startGps(); $('file').click(); };
 $('file').onchange = ev => { const f = ev.target.files[0]; ev.target.value = ''; if(f) handleFile(f); };
-$('btnGeojson').onclick = () => download(new Blob([JSON.stringify(toGeoJSON(cur()), null, 1)], { type: 'application/geo+json' }), 'geophoto.geojson');
+$('btnGeojson').onclick = () => download(new Blob([JSON.stringify(toGeoJSON(cur()), null, 1)], { type: 'application/geo+json' }), 'geophoto_' + stamp(new Date()) + '.geojson');
 $('btnShare').onclick = share;
 $('btnFinish').onclick = finishOperation;
 $('withOrig').onchange = prepareShare;
