@@ -1,5 +1,11 @@
 # Journal des versions
 
+## v3.1 – 2026-10-09
+- « Viser l'objet sur la carte » : placer sur une grande carte l'objet photographié quand il est à distance.
+  Le point s'applique à la photo suivante seulement.
+- La photo prend la position de l'objet ; la position de l'agent, la distance et l'azimut sont conservés
+  (attributs `mode_position`, `agent_x_l93`, `agent_y_l93`, `agent_lon`, `agent_lat`, `distance_agent_m`, `azimut_deg`).
+
 ## v3.0 – 2026-10-06
 - Nouvelle interface : bandeau de position en tête (X, Y, précision), couleurs marines, boutons plus grands.
 - Carte de contrôle (fonds IGN, plan ou vue aérienne) : position en direct, cercle de précision, photos de l'opération.
