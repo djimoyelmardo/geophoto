@@ -71,6 +71,12 @@
   .maptools{position:absolute;z-index:1000;right:8px;top:8px;display:flex;gap:6px}
   .mini{font:inherit;font-size:.8rem;font-weight:700;color:#0f252d;background:rgba(255,255,255,.94);
         border:0;border-radius:8px;padding:7px 10px;min-width:34px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .aimbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:10px;min-height:46px;
+        font:inherit;font-weight:700;color:var(--sea-ink);background:rgba(255,255,255,.08);
+        border:1px solid rgba(255,255,255,.28);border-radius:var(--r-md);cursor:pointer}
+  .aimrow{display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border-radius:var(--r-md);
+        background:rgba(185,58,44,.22);border:1px solid rgba(255,164,151,.45);font-size:.88rem}
+  .aimrow span{flex:1;min-width:0}
   .mapnote{font-size:.78rem;color:var(--sea-muted);margin:8px 0 0}
   .leaflet-container{background:var(--sea-2);font:inherit}
   .leaflet-control-attribution{font-size:10px}
@@ -138,8 +144,8 @@
   .help{max-width:560px;margin:0 auto}
   .help h3{font-size:1.02rem;margin:22px 0 6px} .help h3:first-child{margin-top:0}
   .help p,.help li{font-size:.94rem;margin:0 0 6px} .help ol{padding-left:22px;margin:0}
-  #posMapWrap{position:relative;z-index:0;flex:1;min-height:0}
-  #posMap{position:absolute;inset:0}
+  #posMapWrap,.mapwrap{position:relative;z-index:0;flex:1;min-height:0}
+  #posMap,.mapfill{position:absolute;inset:0}
   .posinfo{flex:none;padding:12px 16px;background:var(--card);border-top:1px solid var(--line)}
   .posinfo .xy{font-variant-numeric:tabular-nums;font-weight:700;font-size:1.05rem}
   .posinfo .mv{font-size:.86rem;color:var(--muted);margin-top:2px}
@@ -199,6 +205,8 @@
           <button class="mini" data-base>Vue aérienne</button>
         </div>
       </div>
+      <button class="aimbtn" id="btnAim"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Viser l'objet sur la carte</button>
+      <div class="aimrow" id="aimRow" hidden><span id="aimText"></span><button class="ghost" id="aimClear">Effacer</button></div>
       <p class="mapnote" id="mapNote" hidden></p>
     </div>
   </div>
@@ -256,7 +264,7 @@
       </div>
     </details>
   </section>
-  <p class="foot">GéoPhoto v3.0</p>
+  <p class="foot">GéoPhoto v3.1</p>
 </main>
 
 <div id="help" class="sheet" hidden>
@@ -271,7 +279,7 @@
     <p>Attendez que la pastille de précision passe au vert (5 m ou moins) avant de photographier. En extérieur, comptez 10 à 20 secondes.</p>
     <h3>Faire un relevé</h3>
     <ol>
-      <li>Saisissez votre nom et un commentaire.</li>
+      <li>Saisissez votre nom et un commentaire. Si l'objet est à distance, touchez « Viser l'objet sur la carte ».</li>
       <li>Touchez « Prendre la photo ».</li>
       <li>Annotez si besoin : trait, flèche, rectangle, ellipse, texte, cote, repère numéroté. Puis « Enregistrer ».</li>
       <li>Vérifiez le point sur la carte. S'il est décalé, touchez « Position » sur la photo et déplacez le repère.</li>
@@ -282,12 +290,26 @@
     <p><b>iPhone :</b> dans la feuille qui s'ouvre, touchez « Enregistrer l'image ». Si vous choisissez autre chose, les photos ne vont pas dans la galerie : relancez l'enregistrement depuis « Opérations précédentes ».</p>
     <p><b>Android :</b> les photos vont dans le dossier Téléchargements, visible dans la galerie. Autorisez les téléchargements multiples si Chrome le demande.</p>
     <p>Rien n'est supprimé : les photos restent dans « Opérations précédentes » jusqu'à ce que vous les supprimiez vous-même.</p>
+    <h3>Viser un objet éloigné</h3>
+    <p>Si l'objet photographié (navire, balise, personne) n'est pas à l'endroit où vous vous tenez, touchez « Viser l'objet sur la carte » avant la photo. Placez le repère rouge sur l'objet, puis « Valider ».</p>
+    <p>Le point visé s'applique à la photo suivante seulement. Votre propre position, la distance et l'azimut sont conservés dans le fichier de points.</p>
     <h3>Sans réseau</h3>
     <p>L'application, le GPS, la photo et l'annotation fonctionnent hors ligne. Le fond de carte ne s'affiche pas, et le mail part quand le réseau revient.</p>
     <h3>Ouvrir les relevés dans QGIS</h3>
     <p>Rangez les pièces jointes dans un même dossier. Depuis un iPhone, glissez le fichier <b>.geojson</b> dans QGIS. Depuis un Android, le fichier est un <b>.csv</b> : Couche, Ajouter une couche, Couche de texte délimité, délimiteur point-virgule, X = lon, Y = lat, EPSG:4326.</p>
     <p>La table contient le commentaire, l'agent, X et Y en Lambert-93, la précision et l'indication d'une position corrigée à la main.</p>
   </div></div>
+</div>
+
+<div id="aim" class="sheet" hidden>
+  <div class="bar"><button id="aimCancel">Annuler</button><div class="t">Viser l'objet</div><button id="aimSave" class="primary">Valider</button></div>
+  <div id="aimMapWrap" class="mapwrap"><div id="aimMap" class="mapfill"></div>
+    <div class="maptools"><button class="mini" data-base>Vue aérienne</button></div>
+  </div>
+  <div class="posinfo">
+    <div class="xy" id="aimXY"></div>
+    <div class="mv" id="aimMove"></div>
+  </div>
 </div>
 
 <div id="pos" class="sheet" hidden>
@@ -298,7 +320,7 @@
   <div class="posinfo">
     <div class="xy" id="posXY"></div>
     <div class="mv" id="posMove"></div>
-    <button id="posReset">Revenir au relevé GPS</button>
+    <button id="posReset">Revenir à la position d'origine</button>
   </div>
 </div>
 
@@ -400,6 +422,10 @@ function props(m){
     lon: +m.pos.lon.toFixed(7), lat: +m.pos.lat.toFixed(7),
     precision_m: +m.pos.acc.toFixed(1), altitude_m: m.pos.alt != null ? +m.pos.alt.toFixed(1) : null,
     annotee: (m.shapes || []).length > 0,
+    mode_position: m.posManual ? 'corrigée à la main' : m.agent ? 'objet visé sur carte' : 'GPS',
+    agent_x_l93: m.agent && m.agent.l93 ? m.agent.l93.x : null, agent_y_l93: m.agent && m.agent.l93 ? m.agent.l93.y : null,
+    agent_lon: m.agent ? +m.agent.lon.toFixed(7) : null, agent_lat: m.agent ? +m.agent.lat.toFixed(7) : null,
+    distance_agent_m: m.agent ? +m.agent.dist.toFixed(1) : null, azimut_deg: m.agent ? Math.round(m.agent.az) : null,
     position_corrigee: !!m.posManual,
     ecart_gps_m: m.posManual && m.posGps ? +distM(m.posGps.lat, m.posGps.lon, m.pos.lat, m.pos.lon).toFixed(1) : null
   };
@@ -414,7 +440,7 @@ function toGeoJSON(metas){
 }
 
 function toCSV(metas){
-  const cols = ['id','fichier','fichier_original','date','auteur','commentaire','x_l93','y_l93','lon','lat','precision_m','altitude_m','annotee','position_corrigee','ecart_gps_m'];
+  const cols = ['id','fichier','fichier_original','date','auteur','commentaire','x_l93','y_l93','lon','lat','precision_m','altitude_m','annotee','mode_position','agent_x_l93','agent_y_l93','agent_lon','agent_lat','distance_agent_m','azimut_deg','position_corrigee','ecart_gps_m'];
   const esc = v => v == null ? '' : '"' + String(v).replace(/"/g,'""') + '"';
   return [cols.join(';')].concat(metas.map(m => { const p = props(m); return cols.map(c => esc(p[c])).join(';'); })).join('\r\n');
 }
@@ -428,6 +454,13 @@ function distM(lat1, lon1, lat2, lon2){
 
 // Horodatage pour les noms de fichiers : 20261006_0142
 function stamp(d){ return d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '_' + pad(d.getHours()) + pad(d.getMinutes()); }
+
+// Azimut en degrés (0 = nord, sens horaire) du point 1 vers le point 2
+function bearing(lat1, lon1, lat2, lon2){
+  const r = Math.PI / 180, y = Math.sin((lon2 - lon1) * r) * Math.cos(lat2 * r);
+  const x = Math.cos(lat1 * r) * Math.sin(lat2 * r) - Math.sin(lat1 * r) * Math.cos(lat2 * r) * Math.cos((lon2 - lon1) * r);
+  return (Math.atan2(y, x) / r + 360) % 360;
+}
 
 function contrast(c){ return (c === '#facc15' || c === '#ffffff') ? '#111111' : '#ffffff'; }
 
@@ -578,7 +611,7 @@ function showPosition(){
   const l = toL93(p.lon, p.lat);
   $('vx').textContent = l ? fmt(l.x, 2) : 'hors zone';
   $('vy').textContent = l ? fmt(l.y, 2) : 'hors zone';
-  try{ updateLiveMap(p); }catch(e){ console.warn('Carte indisponible', e); }
+  try{ updateLiveMap(p); renderTarget(); }catch(e){ console.warn('Carte indisponible', e); }
 }
 function freshFix(){
   return new Promise(res => navigator.geolocation.getCurrentPosition(
@@ -605,7 +638,7 @@ function bannerLines(m){
   const d = new Date(m.date);
   const stamp = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());
   return [
-    (m.l93 ? 'X ' + fmt(m.l93.x,2) + '   Y ' + fmt(m.l93.y,2) + '  (Lambert-93)' : 'Hors zone Lambert-93') + (m.posManual ? '   position corrigée' : '   ± ' + fmt(m.pos.acc,1) + ' m'),
+    (m.l93 ? 'X ' + fmt(m.l93.x,2) + '   Y ' + fmt(m.l93.y,2) + '  (Lambert-93)' : 'Hors zone Lambert-93') + (m.posManual ? '   position corrigée' : m.agent ? '   objet visé à ' + fmt(m.agent.dist, 0) + ' m' : '   ± ' + fmt(m.pos.acc,1) + ' m'),
     m.pos.lat.toFixed(6) + ', ' + m.pos.lon.toFixed(6) + ' (WGS84)  ·  ' + stamp + (m.auteur ? '  ·  ' + m.auteur : '')
   ];
 }
@@ -652,18 +685,25 @@ async function handleFile(file){
 
     const id = 'photo_' + date.getFullYear()+pad(date.getMonth()+1)+pad(date.getDate())+'_'+
                pad(date.getHours())+pad(date.getMinutes())+pad(date.getSeconds());
+    // Objet visé sur la carte : la photo prend la position de l'objet, celle de l'agent est conservée à part
+    const tg = target;
+    const at = tg ? { lat: tg.lat, lon: tg.lon } : { lat: pos.lat, lon: pos.lon };
     const m = { id, name: id + '.jpg', origName: id + '_original.jpg', date: date.toISOString(),
       auteur: $('auteur').value.trim(), commentaire: $('comment').value.trim(),
-      pos: { lat: pos.lat, lon: pos.lon, acc: pos.acc, alt: pos.alt }, l93: toL93(pos.lon, pos.lat),
+      pos: { lat: at.lat, lon: at.lon, acc: pos.acc, alt: tg ? null : pos.alt }, l93: toL93(at.lon, at.lat),
       burn: $('burn').checked, w, h, shapes: [], shared: false };
+    if(tg) m.agent = { lat: pos.lat, lon: pos.lon, acc: pos.acc, alt: pos.alt, l93: toL93(pos.lon, pos.lat),
+                       dist: distM(pos.lat, pos.lon, tg.lat, tg.lon), az: bearing(pos.lat, pos.lon, tg.lat, tg.lon) };
     const orig = dataUrlToBuf(piexif.insert(exifFor(m), cv.toDataURL('image/jpeg', 0.88)));
     const r = renderFinal(cv, m);
     m.thumb = r.thumb; m.size = r.final.byteLength; m.sizeOrig = orig.byteLength;
     await dbPut(m, { orig, final: r.final });
     metas.push(m); sel.add(m.id);
     $('comment').value = '';
+    if(tg){ target = null; renderTarget(); }
     render();
-    say('Photo enregistrée sur ce téléphone (± ' + fmt(pos.acc,1) + ' m).' + (pos.acc > 15 ? ' Attention : précision faible.' : ''));
+    say((tg ? 'Photo enregistrée à la position de l\'objet visé (' + fmt(m.agent.dist, 0) + ' m de vous).'
+            : 'Photo enregistrée sur ce téléphone (± ' + fmt(pos.acc,1) + ' m).') + (pos.acc > 15 ? ' Attention : précision faible.' : ''));
     if($('autoEdit').checked) openEditor(m.id);
   }catch(e){
     console.error(e); say('Erreur pendant le traitement : ' + (e && e.message || e));
@@ -807,6 +847,7 @@ function itemRow(m, set, onToggle, extra){
   const c1 = document.createElement('span'); c1.className = 'chip ' + (m.shared ? 'done' : 'todo'); c1.textContent = m.shared ? 'partagée' : (m.archived ? 'non partagée' : 'à envoyer');
   chips.appendChild(c1);
   if((m.shapes || []).length){ const c2 = document.createElement('span'); c2.className = 'chip'; c2.textContent = 'annotée'; chips.appendChild(c2); }
+  if(m.agent && !m.posManual){ const c4 = document.createElement('span'); c4.className = 'chip'; c4.textContent = 'objet visé à ' + fmt(m.agent.dist, 0) + ' m'; chips.appendChild(c4); }
   if(m.posManual){ const c3 = document.createElement('span'); c3.className = 'chip'; c3.textContent = 'position corrigée'; chips.appendChild(c3); }
   const t = document.createElement('div'); t.className = 'coords';
   t.textContent = (m.l93 ? 'X ' + fmt(m.l93.x,2) + ' · Y ' + fmt(m.l93.y,2) : m.pos.lat.toFixed(6) + ', ' + m.pos.lon.toFixed(6)) + (m.posManual ? '' : ' · ± ' + fmt(m.pos.acc,1) + ' m');
@@ -1063,7 +1104,7 @@ function updateLiveMap(p){
     map.setView(ll, 18); syncBaseButtons(); drawLivePhotos();
   }
   live.me.setLatLng(ll); live.acc.setLatLng(ll).setRadius(p.acc);
-  live.map.setView(ll, live.map.getZoom(), { animate: false });
+  if(!target) live.map.setView(ll, live.map.getZoom(), { animate: false });
 }
 function drawLivePhotos(){
   if(!live) return;
@@ -1081,8 +1122,8 @@ function posInfo(){
   const d = distM(g.lat, g.lng, ll.lat, ll.lng), l = toL93(ll.lng, ll.lat);
   $('posXY').textContent = l ? 'X ' + fmt(l.x, 2) + '   Y ' + fmt(l.y, 2) : ll.lat.toFixed(6) + ', ' + ll.lng.toFixed(6);
   const mv = $('posMove');
-  mv.textContent = d < 0.5 ? 'Sur le relevé GPS (± ' + fmt(posS.m.pos.acc, 1) + ' m). Déplacez le repère rouge ou touchez la carte.'
-                           : 'Déplacé de ' + fmt(d, 1) + ' m par rapport au relevé GPS (point bleu).';
+  mv.textContent = d < 0.5 ? 'Sur la position d\'origine (± ' + fmt(posS.m.pos.acc, 1) + ' m). Déplacez le repère rouge ou touchez la carte.'
+                           : 'Déplacé de ' + fmt(d, 1) + ' m par rapport à la position d\'origine (point bleu).';
   mv.className = 'mv' + (d > Math.max(50, 5 * posS.m.pos.acc) ? ' warn' : '');
   $('posReset').disabled = d < 0.5;
 }
@@ -1133,6 +1174,83 @@ $('posSave').onclick = async () => {
   }catch(e){ console.error(e); $('posMove').textContent = "Échec de l'enregistrement : " + (e && e.message || e); }
   $('posSave').disabled = false;
 };
+
+/* ---------- Viser un objet éloigné ---------- */
+let target = null;                       // { lat, lon } : objet visé, appliqué à la prochaine photo
+const aimS = { map: null, me: null, acc: null, pin: null, line: null, agent: null };
+const pinIcon = () => L.divIcon({ className: 'pin', html: PIN_HTML, iconSize: [36, 46], iconAnchor: [18, 45] });
+function aimInfo(){
+  const a = aimS.agent;
+  if(!aimS.pin){
+    aimS.line.setLatLngs([]);
+    $('aimXY').textContent = "Touchez la carte à l'endroit où se trouve l'objet.";
+    $('aimMove').textContent = 'Point bleu : votre position (± ' + fmt(a.acc, 1) + ' m).'; $('aimMove').className = 'mv';
+    $('aimSave').disabled = true; return;
+  }
+  const ll = aimS.pin.getLatLng(), d = distM(a.lat, a.lon, ll.lat, ll.lng), az = bearing(a.lat, a.lon, ll.lat, ll.lng), l = toL93(ll.lng, ll.lat);
+  aimS.line.setLatLngs([[a.lat, a.lon], ll]);
+  $('aimXY').textContent = l ? 'X ' + fmt(l.x, 2) + '   Y ' + fmt(l.y, 2) : ll.lat.toFixed(6) + ', ' + ll.lng.toFixed(6);
+  const inside = d < a.acc;
+  $('aimMove').textContent = 'À ' + fmt(d, 0) + ' m de vous, azimut ' + Math.round(az) + '°.' +
+    (inside ? " L'objet est dans votre cercle de précision : la position GPS suffit." : '');
+  $('aimMove').className = 'mv' + (inside ? ' warn' : '');
+  $('aimSave').disabled = false;
+}
+function placeAim(ll){
+  if(!aimS.pin){ aimS.pin = L.marker(ll, { draggable: true, autoPan: true, icon: pinIcon() }).addTo(aimS.map); aimS.pin.on('drag', aimInfo); }
+  else aimS.pin.setLatLng(ll);
+  aimInfo();
+}
+function openAim(){
+  if(typeof L === 'undefined'){ say('La carte est indisponible.'); return; }
+  const p = bestPosition(fixes, Date.now(), 30000);
+  if(!p){ say("Votre position n'est pas encore connue : attendez que la pastille de précision s'affiche."); return; }
+  $('aim').hidden = false; document.body.style.overflow = 'hidden';
+  const ll = [p.lat, p.lon];
+  if(!aimS.map){
+    const map = aimS.map = createMap($('aimMap'), true);
+    aimS.acc = L.circle(ll, { radius: p.acc, color: '#14607a', weight: 1, fillColor: '#5cc4d8', fillOpacity: 0.2, interactive: false }).addTo(map);
+    aimS.me = L.circleMarker(ll, { radius: 7, color: '#ffffff', weight: 3, fillColor: '#14607a', fillOpacity: 1, interactive: false }).addTo(map);
+    aimS.line = L.polyline([], { color: '#b93a2c', weight: 3, dashArray: '6 7', interactive: false }).addTo(map);
+    map.on('click', e => placeAim(e.latlng));
+    syncBaseButtons();
+  }
+  aimS.agent = p; aimS.me.setLatLng(ll); aimS.acc.setLatLng(ll).setRadius(p.acc);
+  if(aimS.pin){ aimS.map.removeLayer(aimS.pin); aimS.pin = null; }
+  aimS.map.invalidateSize(); aimS.map.setView(ll, 19, { animate: false });
+  setTimeout(() => aimS.map.invalidateSize(), 80);
+  if(target) placeAim(L.latLng(target.lat, target.lon)); else aimInfo();
+}
+function closeAim(){ $('aim').hidden = true; document.body.style.overflow = ''; }
+// Affichage de l'objet visé : ligne d'état dans le bandeau et repère sur la carte en direct
+let liveTarget = null;
+function renderTarget(){
+  const p = bestPosition(fixes, Date.now(), 30000);
+  $('aimRow').hidden = !target;
+  if(target && p){
+    const d = distM(p.lat, p.lon, target.lat, target.lon), az = bearing(p.lat, p.lon, target.lat, target.lon);
+    $('aimText').textContent = 'Objet visé à ' + fmt(d, 0) + ' m, azimut ' + Math.round(az) + '°. Utilisé pour la prochaine photo.';
+  }
+  if(!live) return;
+  if(!target){ if(liveTarget){ live.map.removeLayer(liveTarget.pin); live.map.removeLayer(liveTarget.line); liveTarget = null; } return; }
+  const tl = [target.lat, target.lon];
+  if(!liveTarget){
+    liveTarget = { pin: L.marker(tl, { icon: pinIcon(), interactive: false }).addTo(live.map),
+                   line: L.polyline([], { color: '#ffa497', weight: 2, dashArray: '5 6', interactive: false }).addTo(live.map) };
+  }
+  liveTarget.pin.setLatLng(tl);
+  if(p){ liveTarget.line.setLatLngs([[p.lat, p.lon], tl]);
+         live.map.fitBounds(L.latLngBounds([[p.lat, p.lon], tl]), { paddingTopLeft: [24, 64], paddingBottomRight: [24, 24], maxZoom: 19, animate: false }); }
+}
+$('btnAim').onclick = openAim;
+$('aimCancel').onclick = closeAim;
+$('aimSave').onclick = () => {
+  if(!aimS.pin) return;
+  const ll = aimS.pin.getLatLng(); target = { lat: ll.lat, lon: ll.lng };
+  closeAim(); renderTarget();
+  say("Objet placé : sa position sera utilisée pour la prochaine photo.");
+};
+$('aimClear').onclick = () => { target = null; renderTarget(); if(live){ const p = bestPosition(fixes, Date.now(), 30000); if(p) live.map.setView([p.lat, p.lon], 18, { animate: false }); } say('Objet visé effacé : la prochaine photo prendra votre position.'); };
 
 /* ---------- Aide ---------- */
 $('btnHelp').onclick = () => { $('help').hidden = false; document.body.style.overflow = 'hidden'; };
