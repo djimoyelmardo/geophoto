@@ -6,7 +6,7 @@ et les envoyer par mail. Aucun serveur : tout se passe sur le téléphone.
 Application en ligne : https://djimoyelmardo.github.io/geophoto/
 
 ## Fonctions
-- Position GPS en WGS84 et en Lambert-93 (EPSG:2154), avec précision affichée.
+- Position GPS en WGS84 (degrés décimaux et degrés-minutes-secondes), avec précision affichée.
 - Carte de contrôle sur fonds IGN (Géoplateforme) et correction manuelle du point.
 - Annotation au doigt : trait, flèche, rectangle, ellipse, texte, cote, repères numérotés.
 - Photos conservées sur le téléphone, utilisables hors-ligne.
@@ -22,6 +22,8 @@ Application en ligne : https://djimoyelmardo.github.io/geophoto/
 | `index.html` | Fichier généré, servi par GitHub Pages (ne pas modifier à la main) |
 | `sw.js` | Cache hors-ligne ; incrémenter `CACHE` à chaque version |
 | `manifest.webmanifest`, `icons/` | Installation sur l'écran d'accueil |
+| `logos/` | Logos OFB et Parc naturel marin (fichiers officiels, non modifiés) |
+| `fonts/` | Police Marianne (DSFR), réservée aux services de l'État et à leurs établissements |
 | `CHANGELOG.md` | Journal des versions |
 
 ## Publier une nouvelle version
@@ -44,5 +46,5 @@ dans le dossier des photos et utiliser cette infobulle HTML :
 ### Depuis Android : fichier CSV
 Android ne permet pas de partager un `.geojson` : le mail contient `geophoto.csv` à la place.
 Dans QGIS : Couche → Ajouter une couche → Couche de texte délimité, délimiteur point-virgule,
-champ X `lon`, champ Y `lat`, SCR EPSG:4326 (ou `x_l93` / `y_l93` en EPSG:2154).
+champ X `lon`, champ Y `lat`, SCR EPSG:4326.
 Le bouton « Télécharger le GeoJSON » de l'application reste disponible pour l'obtenir à part.

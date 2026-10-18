@@ -1,9 +1,9 @@
 // GéoPhoto : met l'application en cache pour qu'elle s'ouvre sans réseau.
 // Changer ce numéro à chaque nouvelle version de index.html.
-const CACHE = 'geophoto-v3.1';
+const CACHE = 'geophoto-v3.2';
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'])).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './logos/ofb.webp', './logos/pnmba.png', './fonts/Marianne-Regular.woff2', './fonts/Marianne-Medium.woff2', './fonts/Marianne-Bold.woff2'])).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
