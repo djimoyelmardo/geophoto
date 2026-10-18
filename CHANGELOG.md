@@ -10,6 +10,8 @@
 - Android : « Partager » envoie les photos et le texte seuls, pour que WhatsApp reçoive les photos ;
   le fichier de points part avec le bouton « Fichier de points ».
 - Bouton « Partager » et icônes sur les boutons.
+- Charte graphique OFB et Parc naturel marin du Bassin d'Arcachon : logos en tête, bleu marine OFB,
+  bleu et sable du Parc, police Marianne (Système de design de l'État), icône aux nouvelles couleurs.
 
 ## v3.1 – 2026-10-09
 - « Viser l'objet sur la carte » : placer sur une grande carte l'objet photographié quand il est à distance.

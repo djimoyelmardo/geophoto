@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b2f3d">
+<meta name="theme-color" content="#ffffff">
 <title>GéoPhoto</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -19,38 +19,53 @@
 <style>
   /* Mise en page : un bandeau « passerelle » sombre (identité, position, carte), puis des fiches claires.
      Couleurs tirées de la carte marine : bleu pétrole, vert et rouge de balisage, jaune chamois des terres. */
+  /* Charte : bleu marine OFB (#183870), bleu et sable du Parc naturel marin (#0068b0, #b8a060),
+     verts « nature » de l'OFB ; police Marianne (Système de design de l'État). */
+  @font-face{font-family:"Marianne";src:url("fonts/Marianne-Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+  @font-face{font-family:"Marianne";src:url("fonts/Marianne-Medium.woff2") format("woff2");font-weight:500 600;font-style:normal;font-display:swap}
+  @font-face{font-family:"Marianne";src:url("fonts/Marianne-Bold.woff2") format("woff2");font-weight:700 800;font-style:normal;font-display:swap}
   :root{
-    --page:#e9f0f1; --card:#ffffff; --ink:#0f252d; --muted:#55707a; --line:#d3dfe2; --field:#f2f6f7;
-    --sea:#0b2f3d; --sea-2:#134354; --sea-ink:#ffffff; --sea-muted:#a3c6cf;
-    --accent:#14607a; --accent-ink:#ffffff;
-    --ok:#1b7f55; --warn:#93600a; --bad:#b93a2c;
-    --buff:#f4e3a1; --buff-ink:#4d3c05; --ok-bg:#dcf1e6; --tint:#dcecef;
+    --page:#eef2f7; --card:#ffffff; --ink:#161b2e; --muted:#58607a; --line:#d8deea; --field:#f4f6fa;
+    --sea:#183870; --sea-2:#22468a; --sea-ink:#ffffff; --sea-muted:#b6c4e2;
+    --accent:#0068b0; --accent-ink:#ffffff;
+    --ok:#0e823a; --warn:#8a6100; --bad:#c9191e;
+    --buff:#efe5c8; --buff-ink:#4a3c12; --ok-bg:#e1f0d3; --tint:#e3ebf6;
+    --sand:#b8a060;
     --r-lg:18px; --r-md:12px;
   }
   @media (prefers-color-scheme: dark){
-    :root{ --page:#06171d; --card:#0d2731; --ink:#e3eef0; --muted:#8eaab3; --line:#1d3f4b; --field:#081f27;
-           --sea:#0e3646; --sea-2:#17495b;
-           --accent:#4bb8ce; --accent-ink:#04222b;
-           --ok:#57c998; --warn:#e7b755; --bad:#f08878;
-           --buff:#5c4b12; --buff-ink:#f8e9b0; --ok-bg:#123c2c; --tint:#12363f; color-scheme:dark; }
+    :root{ --page:#0b1022; --card:#141b33; --ink:#e6eaf4; --muted:#9aa5c2; --line:#273257; --field:#0f1529;
+           --sea:#183870; --sea-2:#22468a;
+           --accent:#5bb0ea; --accent-ink:#071a33;
+           --ok:#9fca7e; --warn:#e7c46a; --bad:#ff8a80;
+           --buff:#4d4220; --buff-ink:#f3e6bd; --ok-bg:#1d3a22; --tint:#1c2747; color-scheme:dark; }
   }
   *{box-sizing:border-box}
   [hidden]{display:none!important}
   html{-webkit-text-size-adjust:100%}
   body{margin:0;background:var(--page);color:var(--ink);
-       font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+       font:16px/1.5 "Marianne",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
        padding-bottom:calc(28px + env(safe-area-inset-bottom))}
   :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
+  /* Bandeau institutionnel : logos sur fond blanc, comme sur les sites de l'OFB */
+  .brand{background:#fff;padding:calc(8px + env(safe-area-inset-top)) 16px 8px;border-bottom:1px solid #d8deea}
+  .brand-in{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:12px}
+  .brand img{display:block;height:auto}
+  .brand .l-ofb{width:96px} .brand .l-pnm{width:52px}
+  .brand .sp{flex:1}
+  .brand .tool{font:inherit;font-size:.85rem;font-weight:700;color:#183870;background:#fff;border:1px solid #c5cde0;
+        border-radius:999px;padding:7px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .brand .tool.icon{padding:7px 9px}
   /* Passerelle */
   .bridge{background:var(--sea);color:var(--sea-ink);border-radius:0 0 var(--r-lg) var(--r-lg);
-          padding:calc(10px + env(safe-area-inset-top)) 16px 16px}
+          padding:14px 16px 16px;border-top:4px solid var(--sand)}
   .bridge-in{max-width:560px;margin:0 auto}
   .top{display:flex;align-items:center;gap:10px;margin-bottom:14px}
   .top svg{flex:none}
-  .top h1{font-size:1.2rem;font-weight:700;letter-spacing:.01em;margin:0;flex:1}
+  .top h1{font-size:1.25rem;font-weight:700;letter-spacing:0;margin:0;flex:1}
   .net{font-size:.78rem;font-weight:600;color:var(--sea-muted);display:flex;align-items:center;gap:6px}
-  .net::before{content:"";width:8px;height:8px;border-radius:50%;background:#6fe0a8}
+  .net::before{content:"";width:8px;height:8px;border-radius:50%;background:#a8d88a}
   .net.off{color:#f3c969} .net.off::before{background:#f3c969}
   .ghost{font:inherit;font-size:.85rem;font-weight:600;color:var(--sea-ink);background:transparent;
          border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:7px 14px;cursor:pointer}
@@ -58,7 +73,7 @@
   .badge{display:inline-flex;align-items:center;gap:7px;padding:5px 12px 5px 10px;border-radius:999px;
          font-size:.95rem;font-weight:700;font-variant-numeric:tabular-nums;background:rgba(255,255,255,.1)}
   .badge::before{content:"";width:10px;height:10px;border-radius:50%;background:currentColor}
-  .badge.ok{color:#7be3b0} .badge.warn{color:#f3c969} .badge.bad{color:#ffa497}
+  .badge.ok{color:#a8d88a} .badge.warn{color:#f3d27a} .badge.bad{color:#ffa497}
   #fixInfo{font-size:.82rem;color:var(--sea-muted)}
   .readout{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}
   .k{font-size:.76rem;color:var(--sea-muted)}
@@ -93,18 +108,20 @@
   .addrow input{flex:1;min-width:0}
   .row2 > *{flex:1}
   .mapnote{font-size:.78rem;color:var(--sea-muted);margin:8px 0 0}
-  .leaflet-container{background:var(--sea-2);font:inherit}
+  .leaflet-container{background:var(--sea-2);font:inherit;font-family:"Marianne",system-ui,sans-serif}
   .leaflet-control-attribution{font-size:10px}
   .pin{background:none;border:0}
   .bridge .gps-off p{color:var(--sea-muted);margin:0 0 10px;font-size:.92rem}
   .bridge .gps-off button{font:inherit;font-weight:700;width:100%;padding:13px;border-radius:var(--r-md);border:0;
-        background:#fff;color:var(--sea);cursor:pointer}
+        background:#fff;color:var(--sea);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
 
   /* Fiches */
   main{max-width:592px;margin:0 auto;padding:16px 16px 0}
   .card{background:var(--card);border-radius:var(--r-lg);padding:16px;margin-bottom:14px;
         box-shadow:0 1px 0 var(--line), 0 0 0 1px var(--line)}
-  .card h2{font-size:1.02rem;font-weight:700;margin:0 0 12px;text-wrap:balance}
+  .card h2{font-size:1.06rem;font-weight:700;margin:0 0 12px;text-wrap:balance;color:var(--ink)}
+  .card h2::before{content:"";display:inline-block;width:4px;height:1em;margin-right:8px;vertical-align:-2px;border-radius:2px;background:var(--sand)}
+  summary h2::before{display:none}
   .card h2 .n{font-weight:600;color:var(--muted)}
   .sub{color:var(--muted);font-size:.85rem;margin:0}
   .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)} .mut{color:var(--muted)}
@@ -133,7 +150,7 @@
   .item .coords{font-variant-numeric:tabular-nums;color:var(--muted)}
   .chip{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.74rem;font-weight:700;margin:0 4px 0 0;
         background:var(--tint);color:var(--ink)}
-  .chip.todo{background:var(--buff);color:var(--buff-ink)}
+  .chip.todo{background:var(--buff);color:var(--buff-ink);box-shadow:inset 0 0 0 1px var(--sand)}
   .chip.done{background:var(--ok-bg);color:var(--ok)}
   .item .acts{display:flex;gap:6px 14px;margin-top:4px;flex-wrap:wrap}
   main .item .acts button{all:unset;cursor:pointer;color:var(--accent);font-weight:650;font-size:.86rem;padding:4px 0;display:inline-flex;align-items:center;gap:4px}
@@ -150,11 +167,11 @@
   /* Écrans plein cadre : aide, position */
   .sheet{position:fixed;inset:0;z-index:20;background:var(--page);color:var(--ink);display:flex;flex-direction:column;
          padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
-  .sheet .bar{display:flex;align-items:center;gap:8px;padding:10px 12px;flex:none;background:var(--sea);color:#fff}
+  .sheet .bar{display:flex;align-items:center;gap:8px;padding:10px 12px;flex:none;background:var(--sea);color:#fff;border-bottom:3px solid var(--sand)}
   .sheet .bar .t{flex:1;font-weight:700;font-size:1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .sheet .bar button{font:inherit;font-weight:650;border-radius:10px;border:1px solid rgba(255,255,255,.28);background:transparent;
          color:#fff;padding:9px 13px;cursor:pointer;flex:none}
-  .sheet .bar button.primary{background:#fff;color:var(--sea);border-color:#fff}
+  .sheet .bar button.primary{background:#fff;color:#183870;border-color:#fff}
   .sheet .body{flex:1;min-height:0;overflow-y:auto;padding:16px}
   .help{max-width:560px;margin:0 auto}
   .help h3{font-size:1.02rem;margin:22px 0 6px} .help h3:first-child{margin-top:0}
@@ -175,7 +192,7 @@
   #ed .bar .t{flex:1;text-align:center;font-size:.85rem;color:#a3c6cf;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #ed button{font:inherit;font-weight:650;border-radius:10px;border:1px solid #23505f;background:#0d2a35;color:#fff;
              padding:9px 12px;cursor:pointer;flex:none}
-  #ed button.primary{background:#4bb8ce;border-color:#4bb8ce;color:#04222b}
+  #ed button.primary{background:#5bb0ea;border-color:#5bb0ea;color:#071a33}
   #ed button.on{background:#fff;color:#051319;border-color:#fff}
   #ed button:disabled{opacity:.4}
   #edWrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
@@ -191,14 +208,21 @@
 </style>
 </head>
 <body>
+<div class="brand">
+  <div class="brand-in">
+    <img class="l-ofb" src="logos/ofb.webp" width="474" height="175" alt="Office français de la biodiversité">
+    <img class="l-pnm" src="logos/pnmba.png" width="240" height="240" alt="Parc naturel marin du Bassin d'Arcachon">
+    <span class="sp"></span>
+    <button class="tool icon" id="btnSettings" data-icon="gear" aria-label="Paramètres"></button>
+    <button class="tool" id="btnHelp" data-icon="help">Aide</button>
+  </div>
+</div>
 <header class="bridge">
   <div class="bridge-in">
     <div class="top">
-      <svg width="26" height="26" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4c-8.3 0-15 6.5-15 14.6C9 29.5 24 44 24 44s15-14.5 15-25.4C39 10.5 32.3 4 24 4z" fill="#fff"/><circle cx="24" cy="19" r="8.4" fill="#14607a"/><circle cx="24" cy="19" r="4.6" fill="#0b2f3d"/><circle cx="21.6" cy="16.8" r="1.5" fill="#fff"/></svg>
+      <svg width="26" height="26" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4c-8.3 0-15 6.5-15 14.6C9 29.5 24 44 24 44s15-14.5 15-25.4C39 10.5 32.3 4 24 4z" fill="#fff"/><circle cx="24" cy="19" r="8.4" fill="#0068b0"/><circle cx="24" cy="19" r="4.6" fill="#183870"/><circle cx="21.6" cy="16.8" r="1.5" fill="#fff"/></svg>
       <h1>GéoPhoto</h1>
       <span id="net" class="net"></span>
-      <button class="ghost icon" id="btnSettings" data-icon="gear" aria-label="Paramètres"></button>
-      <button class="ghost" id="btnHelp" data-icon="help">Aide</button>
     </div>
     <div id="gpsOff" class="gps-off">
       <p id="gpsOffText">Recherche de la position…</p>
@@ -282,7 +306,7 @@
       </div>
     </details>
   </section>
-  <p class="foot">GéoPhoto v3.2</p>
+  <p class="foot">GéoPhoto v3.2 · Office français de la biodiversité · Parc naturel marin du Bassin d'Arcachon</p>
 </main>
 
 <div id="help" class="sheet" hidden>
@@ -525,7 +549,7 @@ function drawShapes(ctx, shapes, w, h){
     const lw = u * s.s * 1.6, fs = u * (9 + s.s * 4);
     ctx.strokeStyle = s.c; ctx.fillStyle = s.c; ctx.lineWidth = lw;
     const label = (txt, x, y, align) => {
-      ctx.font = '700 ' + fs + 'px system-ui, sans-serif';
+      ctx.font = '700 ' + fs + 'px Marianne, system-ui, sans-serif';
       ctx.textAlign = align; ctx.textBaseline = 'middle';
       ctx.lineWidth = fs * 0.22; ctx.strokeStyle = contrast(s.c); ctx.strokeText(txt, x, y);
       ctx.fillStyle = s.c; ctx.fillText(txt, x, y);
@@ -569,7 +593,7 @@ function drawShapes(ctx, shapes, w, h){
       const r = fs * 0.85;
       ctx.beginPath(); ctx.arc(s.p.x, s.p.y, r, 0, Math.PI*2); ctx.fill();
       ctx.lineWidth = r * 0.14; ctx.strokeStyle = contrast(s.c); ctx.stroke();
-      ctx.fillStyle = contrast(s.c); ctx.font = '700 ' + fs + 'px system-ui, sans-serif';
+      ctx.fillStyle = contrast(s.c); ctx.font = '700 ' + fs + 'px Marianne, system-ui, sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(s.n), s.p.x, s.p.y + fs*0.04);
     }
   }
@@ -699,7 +723,7 @@ function drawBanner(ctx, w, h, lines){
   ctx.fillStyle = 'rgba(0,0,0,0.62)'; ctx.fillRect(0, h - bh, w, bh);
   ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
   let size = Math.round(bh * 0.32);
-  const fit = () => { ctx.font = '600 ' + size + 'px system-ui, sans-serif'; return Math.max(...lines.map(t => ctx.measureText(t).width)); };
+  const fit = () => { ctx.font = '700 ' + size + 'px Marianne, system-ui, sans-serif'; return Math.max(...lines.map(t => ctx.measureText(t).width)); };
   while(fit() > w - 2*size && size > 9) size--;
   lines.forEach((t, i) => ctx.fillText(t, size, h - bh + bh * (i + 0.5) / lines.length));
   ctx.restore();
@@ -1189,9 +1213,9 @@ function updateLiveMap(p){
     $('liveBox').hidden = false;
     const map = createMap($('liveMap'), false);
     live = { map,
-      acc: L.circle(ll, { radius: p.acc, color: '#5cc4d8', weight: 1, fillColor: '#5cc4d8', fillOpacity: 0.2, interactive: false }).addTo(map),
+      acc: L.circle(ll, { radius: p.acc, color: '#7fb6e6', weight: 1, fillColor: '#7fb6e6', fillOpacity: 0.2, interactive: false }).addTo(map),
       pts: L.layerGroup().addTo(map),
-      me: L.circleMarker(ll, { radius: 7, color: '#ffffff', weight: 3, fillColor: '#14607a', fillOpacity: 1, interactive: false }).addTo(map) };
+      me: L.circleMarker(ll, { radius: 7, color: '#ffffff', weight: 3, fillColor: '#0068b0', fillOpacity: 1, interactive: false }).addTo(map) };
     map.setView(ll, 18); syncBaseButtons(); drawLivePhotos();
   }
   live.me.setLatLng(ll); live.acc.setLatLng(ll).setRadius(p.acc);
@@ -1200,7 +1224,7 @@ function updateLiveMap(p){
 function drawLivePhotos(){
   if(!live) return;
   live.pts.clearLayers();
-  cur().forEach(m => L.circleMarker([m.pos.lat, m.pos.lon], { radius: 5, color: '#0b2f3d', weight: 2, fillColor: '#f4e3a1', fillOpacity: 1, interactive: false }).addTo(live.pts));
+  cur().forEach(m => L.circleMarker([m.pos.lat, m.pos.lon], { radius: 5, color: '#183870', weight: 2, fillColor: '#b8a060', fillOpacity: 1, interactive: false }).addTo(live.pts));
 }
 $('liveIn').onclick = () => { if(live) live.map.zoomIn(1); };
 $('liveOut').onclick = () => { if(live) live.map.zoomOut(1); };
@@ -1225,8 +1249,8 @@ function openPosition(id){
   const g = m.posGps || m.pos, ll = [m.pos.lat, m.pos.lon], gl = [g.lat, g.lon];
   if(!posS.map){
     const map = posS.map = createMap($('posMap'), true);
-    posS.ghostAcc = L.circle(gl, { radius: m.pos.acc, color: '#14607a', weight: 1, fillColor: '#5cc4d8', fillOpacity: 0.2, interactive: false }).addTo(map);
-    posS.ghost = L.circleMarker(gl, { radius: 6, color: '#ffffff', weight: 2, fillColor: '#14607a', fillOpacity: 1, interactive: false }).addTo(map);
+    posS.ghostAcc = L.circle(gl, { radius: m.pos.acc, color: '#0068b0', weight: 1, fillColor: '#7fb6e6', fillOpacity: 0.2, interactive: false }).addTo(map);
+    posS.ghost = L.circleMarker(gl, { radius: 6, color: '#ffffff', weight: 2, fillColor: '#0068b0', fillOpacity: 1, interactive: false }).addTo(map);
     posS.marker = L.marker(ll, { draggable: true, autoPan: true, icon: L.divIcon({ className: 'pin', html: PIN_HTML, iconSize: [36, 46], iconAnchor: [18, 45] }) }).addTo(map);
     posS.marker.on('drag', posInfo);
     map.on('click', e => { posS.marker.setLatLng(e.latlng); posInfo(); });
@@ -1300,8 +1324,8 @@ function openAim(){
   const ll = [p.lat, p.lon];
   if(!aimS.map){
     const map = aimS.map = createMap($('aimMap'), true);
-    aimS.acc = L.circle(ll, { radius: p.acc, color: '#14607a', weight: 1, fillColor: '#5cc4d8', fillOpacity: 0.2, interactive: false }).addTo(map);
-    aimS.me = L.circleMarker(ll, { radius: 7, color: '#ffffff', weight: 3, fillColor: '#14607a', fillOpacity: 1, interactive: false }).addTo(map);
+    aimS.acc = L.circle(ll, { radius: p.acc, color: '#0068b0', weight: 1, fillColor: '#7fb6e6', fillOpacity: 0.2, interactive: false }).addTo(map);
+    aimS.me = L.circleMarker(ll, { radius: 7, color: '#ffffff', weight: 3, fillColor: '#0068b0', fillOpacity: 1, interactive: false }).addTo(map);
     aimS.line = L.polyline([], { color: '#b93a2c', weight: 3, dashArray: '6 7', interactive: false }).addTo(map);
     map.on('click', e => placeAim(e.latlng));
     syncBaseButtons();
@@ -1492,6 +1516,9 @@ $('btnInstall').onclick = async () => {
   installEvent = null; $('install').hidden = true;
 };
 $('btnInstallLater').onclick = () => { try{ localStorage.setItem('geophoto_install_later', '1'); }catch(e){} $('install').hidden = true; };
+
+// Charger la police avant de dessiner les bandeaux (sinon le premier rendu utilise la police système)
+try{ if(document.fonts) ['400','700'].forEach(w => document.fonts.load(w + ' 16px Marianne')); }catch(e){}
 
 (async function init(){
   buildEditorUi(); netState(); showInstall();

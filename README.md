@@ -22,6 +22,8 @@ Application en ligne : https://djimoyelmardo.github.io/geophoto/
 | `index.html` | Fichier généré, servi par GitHub Pages (ne pas modifier à la main) |
 | `sw.js` | Cache hors-ligne ; incrémenter `CACHE` à chaque version |
 | `manifest.webmanifest`, `icons/` | Installation sur l'écran d'accueil |
+| `logos/` | Logos OFB et Parc naturel marin (fichiers officiels, non modifiés) |
+| `fonts/` | Police Marianne (DSFR), réservée aux services de l'État et à leurs établissements |
 | `CHANGELOG.md` | Journal des versions |
 
 ## Publier une nouvelle version
