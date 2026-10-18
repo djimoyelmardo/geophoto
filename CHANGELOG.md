@@ -1,5 +1,16 @@
 # Journal des versions
 
+## v3.2 – 2026-10-18
+- Coordonnées en WGS84 uniquement : degrés décimaux et degrés-minutes-secondes (écran, bandeau, mail, fichiers).
+  Les attributs Lambert-93 sont retirés ; ajout de `lat_dms` et `lon_dms`.
+- Champ « Objet » de l'opération : objet du mail, première ligne du message, attribut `objet`, description EXIF.
+- Listes d'agents et de destinataires : suggestions dans le formulaire, ajout automatique des nouvelles saisies,
+  écran Paramètres (ajout, retrait, export et import par fichier). Rien n'est publié en ligne.
+- Destinataire copié au moment du partage, à coller dans le champ « À ».
+- Android : « Partager » envoie les photos et le texte seuls, pour que WhatsApp reçoive les photos ;
+  le fichier de points part avec le bouton « Fichier de points ».
+- Bouton « Partager » et icônes sur les boutons.
+
 ## v3.1 – 2026-10-09
 - « Viser l'objet sur la carte » : placer sur une grande carte l'objet photographié quand il est à distance.
   Le point s'applique à la photo suivante seulement.
